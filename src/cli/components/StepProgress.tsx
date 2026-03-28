@@ -43,6 +43,8 @@ export function StepProgress({
 
   return (
     <Box gap={1}>
+      <Text bold color={theme.accent}>ColorGirl</Text>
+      <Text color={theme.border}>│</Text>
       {STEPS.map((step, idx) => {
         const { icon, color } = stepStatus(idx, currentIdx, isError);
         return (

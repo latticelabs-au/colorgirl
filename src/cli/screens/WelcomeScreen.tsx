@@ -1,7 +1,7 @@
 import React from "react";
 import { Box, Text, useInput } from "ink";
-import { Header, StatusBar, KeyHint } from "../components/index.js";
-import { theme } from "../theme.js";
+import { KeyHint } from "../components/index.js";
+import { theme, LOGO, MASCOT } from "../theme.js";
 
 interface WelcomeScreenProps {
   version: string;
@@ -17,6 +17,13 @@ function connectIcon(status: boolean | null): { icon: string; color: string } {
     : { icon: "○", color: theme.error };
 }
 
+const LOGO_COLORS = [
+  theme.accentBright,
+  theme.accent,
+  theme.accent,
+  theme.accentDim,
+];
+
 export function WelcomeScreen({
   version,
   isConnected,
@@ -31,38 +38,91 @@ export function WelcomeScreen({
 
   const temporal = connectIcon(isConnected);
   const claude = connectIcon(isClaudeConnected);
+  const logoLines = LOGO.split("\n").filter((l) => l.length > 0);
 
   return (
-    <Box flexDirection="column" gap={1}>
-      <Header version={version} />
-      <StatusBar
-        phase="Welcome"
-        message="AI-powered product scraper"
-        isConnected={isConnected}
-      />
-      <Box flexDirection="column">
-        <Text>
-          <Text color={temporal.color}>{temporal.icon} </Text>
-          <Text color={theme.textDim}>Temporal: </Text>
-          <Text color={temporal.color}>{isConnected ? "Connected" : "Disconnected"}</Text>
-        </Text>
-        <Text>
-          <Text color={claude.color}>{claude.icon} </Text>
-          <Text color={theme.textDim}>Claude:   </Text>
-          <Text color={claude.color}>
-            {isClaudeConnected === null ? "Checking..." : isClaudeConnected ? "Connected" : "Disconnected"}
+    <Box flexDirection="column">
+      {/* Main welcome box */}
+      <Box
+        flexDirection="row"
+        borderStyle="round"
+        borderColor={theme.accent}
+        paddingX={2}
+        paddingY={1}
+        gap={4}
+      >
+        {/* Left: logo + version */}
+        <Box flexDirection="column" alignItems="center">
+          {logoLines.map((line, i) => (
+            <Text key={i} color={LOGO_COLORS[i % LOGO_COLORS.length]}>
+              {line}
+            </Text>
+          ))}
+          <Text color={theme.accentLight}>v{version}</Text>
+          <Box marginTop={1}>
+            {MASCOT.map((line, i) => (
+              <Text key={i} color={i === 0 ? theme.accentBright : theme.accent}>
+                {i > 0 ? "\n" : ""}{line}
+              </Text>
+            ))}
+          </Box>
+        </Box>
+
+        {/* Right: status + info */}
+        <Box flexDirection="column" gap={1}>
+          <Text bold color={theme.text}>
+            Hey User! ✿
           </Text>
-        </Text>
+          <Text color={theme.textDim}>
+            AI-powered product scraper → WooCommerce CSV
+          </Text>
+
+          <Box flexDirection="column" marginTop={1}>
+            <Text color={theme.accentLight} bold>Services</Text>
+            <Text>
+              <Text color={temporal.color}>{temporal.icon} </Text>
+              <Text color={theme.textDim}>Temporal  </Text>
+              <Text color={temporal.color}>
+                {isConnected ? "Connected" : "Disconnected"}
+              </Text>
+            </Text>
+            <Text>
+              <Text color={claude.color}>{claude.icon} </Text>
+              <Text color={theme.textDim}>Claude    </Text>
+              <Text color={claude.color}>
+                {isClaudeConnected === null
+                  ? "Checking..."
+                  : isClaudeConnected
+                    ? "Connected"
+                    : "Disconnected"}
+              </Text>
+            </Text>
+          </Box>
+
+          {isClaudeConnected === false && (
+            <Text color={theme.warning}>
+              Run &apos;claude&apos; to re-auth, or pass ANTHROPIC_API_KEY
+            </Text>
+          )}
+
+          <Box marginTop={1}>
+            <Text color={theme.accent}>Press </Text>
+            <Text bold color={theme.accentBright}>Enter</Text>
+            <Text color={theme.accent}> to start scraping</Text>
+          </Box>
+        </Box>
       </Box>
-      {isClaudeConnected === false && (
-        <Text color={theme.warning}>
-          Run &apos;claude&apos; to re-authenticate, or pass ANTHROPIC_API_KEY
-        </Text>
-      )}
+
+      {/* Footer */}
       <Box marginTop={1}>
-        <Text color={theme.text}>Press Enter to begin</Text>
+        <KeyHint
+          hints={[
+            { key: "Enter", action: "Begin" },
+            { key: "q", action: "Quit" },
+            { key: "?", action: "Help" },
+          ]}
+        />
       </Box>
-      <KeyHint hints={[{ key: "Enter", action: "Begin" }, { key: "q", action: "Quit" }, { key: "?", action: "Help" }]} />
     </Box>
   );
 }

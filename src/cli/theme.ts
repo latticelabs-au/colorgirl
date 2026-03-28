@@ -30,3 +30,10 @@ export const LOGO = `
  | (__/ _ \\ / _ \\ '_| \\__ \\ | '_| |
   \\___\\___/_\\___/_|   |___/_|_| |_|
 `;
+
+/** Small mascot — a little trophy with a heart. */
+export const MASCOT = [
+  "  \\♥/",
+  "  ─┬─",
+  "  ╱ ╲",
+];
