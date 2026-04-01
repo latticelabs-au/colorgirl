@@ -65,7 +65,7 @@ export function replaceSlashes(value: string): string {
  * Strip units and return a whole number string (no .0 decimals).
  * Rounds to the nearest integer. Returns "" for empty or non-numeric input.
  */
-export function formatNumber(value: string | number): string {
+export function formatNumber(value: string | number | null | undefined): string {
   if (value === "" || value === null || value === undefined) return "";
 
   const str = String(value).trim();
@@ -109,7 +109,8 @@ const SIZE_WINDOWS: Array<[number, number]> = [
 
 /**
  * Map a variant count to the S/M/L/XL size labelling scheme.
- * Always starts at S. Returns [] when only 0 or 1 variant exists.
+ * Smallest label is S for counts 2-4; larger counts expand outward into XS/XXS.
+ * Returns [] when only 0 or 1 variant exists.
  */
 export function assignSizeLabels(variantCount: number): string[] {
   if (variantCount <= 1) return [];
@@ -179,6 +180,11 @@ export function formatDimensions(dimensions: DimensionEntry[]): string {
  * Dispatcher that applies a named transform to a value.
  * Called by the pipeline when processing AttributeDef.transform values.
  * Unknown transform names return the value unchanged.
+ *
+ * Composite transforms (transforms that chain multiple steps):
+ *   "colour_cleanup" — reorderColours then replaceSlashes. Use this on colour
+ *   attributes instead of applying the two transforms separately, so that
+ *   Silver/Gold are pushed to the end before " / " is converted to " & ".
  */
 export function applyTransform(value: string, transformName: string): string {
   switch (transformName) {
@@ -190,6 +196,8 @@ export function applyTransform(value: string, transformName: string): string {
       return replaceSlashes(value);
     case "format_number":
       return formatNumber(value);
+    case "colour_cleanup":
+      return replaceSlashes(reorderColours(value));
     default:
       return value;
   }

@@ -74,7 +74,7 @@ export interface AttributeDef {
   isGlobal: boolean;
   /** CSS selector on the product page that exposes this attribute */
   selector?: string;
-  /** Named transform to apply: "strip_antique", "reorder_colours", etc. */
+  /** Named transform to apply: "strip_prefix", "reorder_colours", "replace_slashes", "format_number", "colour_cleanup" */
   transform?: string;
   /** true = auto-assign S/M/L/XL labels based on variant count */
   sizeLabels?: boolean;
