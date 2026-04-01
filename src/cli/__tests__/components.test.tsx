@@ -126,6 +126,15 @@ describe("Table", () => {
     expect(frame).not.toContain("Medals");
   });
 
+  it("does not truncate text that exactly matches column width", () => {
+    // "Fifteen Letters" is exactly 15 chars, matching the column width of 15
+    const exactData = [{ name: "Fifteen Letters", count: 1 }];
+    const { lastFrame } = render(<Table columns={columns} data={exactData} />);
+    const frame = lastFrame()!;
+    expect(frame).toContain("Fifteen Letters");
+    expect(frame).not.toContain("...");
+  });
+
   it("truncates long content with ellipsis", () => {
     const longData = [{ name: "VeryLongProductName", count: 1 }];
     const { lastFrame } = render(<Table columns={columns} data={longData} />);

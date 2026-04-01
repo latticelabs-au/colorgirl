@@ -13,10 +13,11 @@ interface TableProps {
   columns: Column[];
   data: Record<string, string | number>[];
   maxRows?: number;
+  rowKey?: string;
 }
 
 function pad(text: string, width: number, align: "left" | "right" | "center" = "left"): string {
-  if (text.length >= width) {
+  if (text.length > width) {
     return text.slice(0, width - 3) + "...";
   }
   const gap = width - text.length;
@@ -28,7 +29,7 @@ function pad(text: string, width: number, align: "left" | "right" | "center" = "
   return text + " ".repeat(gap);
 }
 
-export function Table({ columns, data, maxRows }: TableProps): React.ReactElement {
+export function Table({ columns, data, maxRows, rowKey }: TableProps): React.ReactElement {
   const rows = maxRows !== undefined ? data.slice(0, maxRows) : data;
   const colWidths = columns.map((c) => c.width ?? Math.max(c.header.length, 10));
 
@@ -52,7 +53,7 @@ export function Table({ columns, data, maxRows }: TableProps): React.ReactElemen
 
       {/* Rows */}
       {rows.map((row, rowIdx) => (
-        <Box key={rowIdx}>
+        <Box key={rowKey ? String(row[rowKey]) : rowIdx}>
           {columns.map((col, i) => (
             <Text
               key={col.key}
