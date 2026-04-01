@@ -50,10 +50,6 @@ export async function executeAgent(
 ): Promise<AgentResponse> {
   const { model, systemPrompt, maxTokens = 4096 } = options;
 
-  const messages: Array<{ role: "user"; content: string }> = [
-    { role: "user", content: prompt },
-  ];
-
   const response = query({
     model,
     systemPrompt,
