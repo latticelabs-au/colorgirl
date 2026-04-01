@@ -1,0 +1,138 @@
+# SiteConfig for trophies.com.au
+#
+# Site structure (from Python scraper analysis):
+# - Category pages:  /products/{section}/{slug}/  (sections: trophies, medals, corporate, cups, awards)
+# - Product pages:   /products/{section}/{slug}/{product-slug}/
+# - Pagination:      ?filter=view-all&page=N on category pages
+# - Variants:        Each colour is a separate product page (same-page size variants via <template> tags)
+# - Size variants:   Embedded in <template data-temp-id="SKU"> elements with per-variant tables
+# - The "Additional Information" table holds Product Code, Size, Colour, Material, Insert Size, Width,
+#   Engraving Plate, and Weight.
+#
+# The product page structure:
+#   <main>
+#     <h1>Product Name</h1>
+#     <p>Parent SKU (e.g. CR198)</p>
+#     <p>Description</p>
+#     ...
+#     <div class="group">           <-- one per size variant thumbnail
+#       <img alt="...!">
+#       <p class="font-bold">CR198A</p>   <-- variant SKU
+#       <p>150mm</p>                       <-- variant size
+#     </div>
+#     ...
+#     <table>...</table>            <-- "Additional Information" table (visible for first/selected variant)
+#     <template data-temp-id="CR198B">   <-- hidden variant tables
+#       <table>...</table>
+#     </template>
+#   </main>
+#
+# Category page product links: <a> tags inside <main> that link to /products/.../ and contain <p> with name.
+
+name: "trophies-com-au"
+baseUrl: "https://trophies.com.au"
+
+# Discovery via category list — each section has a base path and category slugs.
+# Only include a small subset for testing; the full list is in the Python config.py.
+discovery:
+  type: "category-list"
+  sections:
+    - name: "Trophies"
+      path: "/products/trophies"
+      categories:
+        - "chess"
+        - "darts"
+
+# CSS selectors for product page fields.
+# NOTE: trophies.com.au uses Tailwind utility classes, not semantic class names.
+# The selectors below target the DOM structure rather than class names.
+selectors:
+  name: "main h1"
+  sku: "main h1 + p"
+  images: "main img[src*='/products/']"
+  description: "main h1 ~ p:nth-of-type(2)"
+  # The "Additional Information" table has variant data in td cells.
+  # Weight/width/height are read from the table, but the engine uses
+  # the extra selectors below since these are table-row values.
+  extra:
+    pa_colour: "main table tr:has(td:first-child:contains('Colour')) td:nth-child(2)"
+    pa_material: "main table tr:has(td:first-child:contains('Material')) td:nth-child(2)"
+    pa_size: "main table tr:has(td:first-child:contains('Size')) td:nth-child(2)"
+    pa_insert-size: "main table tr:has(td:first-child:contains('Insert Size')) td:nth-child(2)"
+    pa_engraving-plate: "main table tr:has(td:first-child:contains('Engraving Plate')) td:nth-child(2)"
+    pa_weight: "main table tr:has(td:first-child:contains('Weight')) td:nth-child(2)"
+    pa_width: "main table tr:has(td:first-child:contains('Width')) td:nth-child(2)"
+
+# Attribute definitions
+attributes:
+  - name: "Size"
+    slug: "pa_size"
+    isVariation: true
+    isGlobal: true
+    sizeLabels: true
+    transform: "format_number"
+
+  - name: "Colour"
+    slug: "pa_colour"
+    isVariation: true
+    isGlobal: true
+    transform: "colour_cleanup"
+
+  - name: "Material"
+    slug: "pa_material"
+    isVariation: false
+    isGlobal: true
+    transform: "replace_slashes"
+
+  - name: "Insert size"
+    slug: "pa_insert-size"
+    isVariation: false
+    isGlobal: false
+
+  - name: "Medal size"
+    slug: "pa_medal-size"
+    isVariation: false
+    isGlobal: false
+    transform: "format_number"
+
+  - name: "Thickness"
+    slug: "pa_thickness"
+    isVariation: false
+    isGlobal: false
+    transform: "format_number"
+
+  - name: "Engraving plate size"
+    slug: "pa_engraving-plate"
+    isVariation: false
+    isGlobal: false
+
+# Be polite -- 2.5 seconds between requests
+rateLimit: 2500
+
+# Each colour is a SEPARATE page on trophies.com.au.
+# Size variants are on the same page (embedded in <template> tags).
+variants:
+  type: "separate-pages"
+  linkSelector: "main a[href*='/products/']"
+
+# Categories to skip (already imported by the client)
+skipCategories:
+  - "academic"
+  - "american-football"
+  - "archery"
+  - "athletics"
+  - "badminton"
+  - "bmx"
+  - "cheerleading"
+  - "cooking"
+  - "esports"
+  - "football-soccer"
+  - "gardening"
+  - "mma"
+  - "pets"
+  - "touch-tag"
+  - "triathlon"
+  - "trivia"
+  - "volleyball"
+  - "water-polo"
+  - "wrestling"
