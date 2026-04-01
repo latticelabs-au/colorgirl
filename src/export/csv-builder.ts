@@ -26,10 +26,28 @@ export interface CsvBuilderConfig {
 // Internal helpers
 // ---------------------------------------------------------------------------
 
+/** Return the two SEO meta column names for the given plugin. */
+function seoColumnNames(plugin: "yoast" | "rankmath"): [string, string] {
+  return plugin === "rankmath"
+    ? ["Meta: rank_math_title", "Meta: rank_math_description"]
+    : ["Meta: _yoast_wpseo_title", "Meta: _yoast_wpseo_metadesc"];
+}
+
+/** Return the four dimension/weight column names for the given config. */
+function dimensionColumnNames(config: CsvBuilderConfig): { weight: string; length: string; width: string; height: string } {
+  const wu = config.weightUnit ?? "kg";
+  const du = config.dimensionUnit ?? "cm";
+  return {
+    weight: `Weight (${wu})`,
+    length: `Length (${du})`,
+    width: `Width (${du})`,
+    height: `Height (${du})`,
+  };
+}
+
 /** Build ordered list of column header strings. */
 function buildHeaders(config: CsvBuilderConfig): string[] {
-  const weightUnit = config.weightUnit ?? "kg";
-  const dimensionUnit = config.dimensionUnit ?? "cm";
+  const { weight, length, width, height } = dimensionColumnNames(config);
 
   const fixed = [
     "ID",
@@ -43,10 +61,10 @@ function buildHeaders(config: CsvBuilderConfig): string[] {
     "Description",
     "Tax status",
     "In stock?",
-    `Weight (${weightUnit})`,
-    `Length (${dimensionUnit})`,
-    `Width (${dimensionUnit})`,
-    `Height (${dimensionUnit})`,
+    weight,
+    length,
+    width,
+    height,
     "Regular price",
     "Categories",
     "Images",
@@ -64,11 +82,7 @@ function buildHeaders(config: CsvBuilderConfig): string[] {
     );
   });
 
-  const seoPlugin = config.seoPlugin ?? "yoast";
-  const seoHeaders =
-    seoPlugin === "rankmath"
-      ? ["Meta: rank_math_title", "Meta: rank_math_description"]
-      : ["Meta: _yoast_wpseo_title", "Meta: _yoast_wpseo_metadesc"];
+  const seoHeaders = seoColumnNames(config.seoPlugin ?? "yoast");
 
   return [...fixed, ...attributeHeaders, ...seoHeaders];
 }
@@ -137,11 +151,8 @@ function buildParentRow(
   config: CsvBuilderConfig,
   headers: string[],
 ): string[] {
-  const seoPlugin = config.seoPlugin ?? "yoast";
-  const [seoTitleCol, seoDescCol] =
-    seoPlugin === "rankmath"
-      ? ["Meta: rank_math_title", "Meta: rank_math_description"]
-      : ["Meta: _yoast_wpseo_title", "Meta: _yoast_wpseo_metadesc"];
+  const [seoTitleCol, seoDescCol] = seoColumnNames(config.seoPlugin ?? "yoast");
+  const { weight, length, width, height } = dimensionColumnNames(config);
 
   // Images from first variation
   const firstVariation = product.variations[0];
@@ -159,10 +170,10 @@ function buildParentRow(
     "Description": product.longDescription,
     "Tax status": "taxable",
     "In stock?": "1",
-    [`Weight (${config.weightUnit ?? "kg"})`]: "",
-    [`Length (${config.dimensionUnit ?? "cm"})`]: "",
-    [`Width (${config.dimensionUnit ?? "cm"})`]: "",
-    [`Height (${config.dimensionUnit ?? "cm"})`]: "",
+    [weight]: "",
+    [length]: "",
+    [width]: "",
+    [height]: "",
     "Regular price": "",
     "Categories": formatCategories(product.categoryPath),
     "Images": images,
@@ -192,16 +203,8 @@ function buildVariationRow(
   config: CsvBuilderConfig,
   headers: string[],
 ): string[] {
-  const weightKey = `Weight (${config.weightUnit ?? "kg"})`;
-  const lengthKey = `Length (${config.dimensionUnit ?? "cm"})`;
-  const widthKey = `Width (${config.dimensionUnit ?? "cm"})`;
-  const heightKey = `Height (${config.dimensionUnit ?? "cm"})`;
-
-  const seoPlugin = config.seoPlugin ?? "yoast";
-  const [seoTitleCol, seoDescCol] =
-    seoPlugin === "rankmath"
-      ? ["Meta: rank_math_title", "Meta: rank_math_description"]
-      : ["Meta: _yoast_wpseo_title", "Meta: _yoast_wpseo_metadesc"];
+  const { weight, length, width, height } = dimensionColumnNames(config);
+  const [seoTitleCol, seoDescCol] = seoColumnNames(config.seoPlugin ?? "yoast");
 
   const fixedFields: Record<string, string> = {
     "ID": "",
@@ -215,10 +218,10 @@ function buildVariationRow(
     "Description": "",
     "Tax status": "",
     "In stock?": "1",
-    [weightKey]: formatNumber(variation.dimensions?.weight),
-    [lengthKey]: "",
-    [widthKey]: formatNumber(variation.dimensions?.width),
-    [heightKey]: formatNumber(variation.dimensions?.height),
+    [weight]: formatNumber(variation.dimensions?.weight),
+    [length]: "",
+    [width]: formatNumber(variation.dimensions?.width),
+    [height]: formatNumber(variation.dimensions?.height),
     "Regular price":
       variation.price != null ? formatNumber(variation.price) : "",
     "Categories": "",
@@ -247,16 +250,8 @@ function buildSimpleRow(
   headers: string[],
 ): string[] {
   const variation = product.variations[0];
-  const weightKey = `Weight (${config.weightUnit ?? "kg"})`;
-  const lengthKey = `Length (${config.dimensionUnit ?? "cm"})`;
-  const widthKey = `Width (${config.dimensionUnit ?? "cm"})`;
-  const heightKey = `Height (${config.dimensionUnit ?? "cm"})`;
-
-  const seoPlugin = config.seoPlugin ?? "yoast";
-  const [seoTitleCol, seoDescCol] =
-    seoPlugin === "rankmath"
-      ? ["Meta: rank_math_title", "Meta: rank_math_description"]
-      : ["Meta: _yoast_wpseo_title", "Meta: _yoast_wpseo_metadesc"];
+  const { weight, length, width, height } = dimensionColumnNames(config);
+  const [seoTitleCol, seoDescCol] = seoColumnNames(config.seoPlugin ?? "yoast");
 
   const fixedFields: Record<string, string> = {
     "ID": "",
@@ -270,10 +265,10 @@ function buildSimpleRow(
     "Description": product.longDescription,
     "Tax status": "taxable",
     "In stock?": "1",
-    [weightKey]: variation ? formatNumber(variation.dimensions?.weight) : "",
-    [lengthKey]: "",
-    [widthKey]: variation ? formatNumber(variation.dimensions?.width) : "",
-    [heightKey]: variation ? formatNumber(variation.dimensions?.height) : "",
+    [weight]: variation ? formatNumber(variation.dimensions?.weight) : "",
+    [length]: "",
+    [width]: variation ? formatNumber(variation.dimensions?.width) : "",
+    [height]: variation ? formatNumber(variation.dimensions?.height) : "",
     "Regular price":
       variation?.price != null ? formatNumber(variation.price) : "",
     "Categories": formatCategories(product.categoryPath),
