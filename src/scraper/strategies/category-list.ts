@@ -15,7 +15,7 @@ export async function discoverFromCategoryList(
   baseUrl: string,
   browser: BrowserManager,
 ): Promise<DiscoveryResult> {
-  const urls: string[] = [];
+  const urlSet = new Set<string>();
 
   for (const section of config.sections) {
     for (const category of section.categories) {
@@ -29,12 +29,12 @@ export async function discoverFromCategoryList(
 
       // Only keep links that are under the same base URL
       for (const link of links) {
-        if (link.startsWith(baseUrl) && !urls.includes(link)) {
-          urls.push(link);
+        if (link.startsWith(baseUrl)) {
+          urlSet.add(link);
         }
       }
     }
   }
 
-  return { urls };
+  return { urls: [...urlSet] };
 }

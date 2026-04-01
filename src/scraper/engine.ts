@@ -85,6 +85,13 @@ export async function extractProduct(
   const name = await textContent(page, selectors.name);
   const sku = await textContent(page, selectors.sku);
 
+  if (!name) {
+    throw new Error(`Missing product name at ${url}`);
+  }
+  if (!sku) {
+    throw new Error(`Missing product SKU at ${url}`);
+  }
+
   // Images — collect all src attributes from matching elements
   const images = await page.$$eval(selectors.images, (els: Element[]) =>
     els
@@ -181,43 +188,50 @@ export async function scrape(
   const products: RawProduct[] = [];
   const errors: ScrapeError[] = [];
 
-  // Phase 1: Discovery
-  onProgress?.({ phase: "discovering", current: 0, total: 0 });
+  try {
+    // Phase 1: Discovery (with retry)
+    onProgress?.({ phase: "discovering", current: 0, total: 0 });
 
-  const { urls } = await discoverProducts(config, browser);
+    const { urls } = await withRetry(
+      () => discoverProducts(config, browser),
+      MAX_RETRIES,
+    );
 
-  // Filter by categories if specified
-  let targetUrls = urls;
-  if (options.categories && options.categories.length > 0) {
-    const cats = options.categories.map((c) => c.toLowerCase());
-    targetUrls = urls.filter((url) => {
-      const lower = url.toLowerCase();
-      return cats.some((cat) => lower.includes(cat));
-    });
-  }
-
-  // Phase 2: Scrape each product URL
-  const total = targetUrls.length;
-
-  for (let i = 0; i < total; i++) {
-    const url = targetUrls[i];
-    onProgress?.({ phase: "scraping", current: i + 1, total, currentUrl: url });
-
-    let retries = 0;
-    try {
-      const product = await withRetry(
-        () => extractProduct(url, config, browser),
-        MAX_RETRIES,
-      );
-      products.push(product);
-    } catch (err) {
-      retries = MAX_RETRIES;
-      errors.push({
-        url,
-        error: err instanceof Error ? err.message : String(err),
-        retries,
+    // Filter by categories if specified
+    let targetUrls = urls;
+    if (options.categories && options.categories.length > 0) {
+      const cats = options.categories.map((c) => c.toLowerCase());
+      targetUrls = urls.filter((url) => {
+        const lower = url.toLowerCase();
+        return cats.some((cat) => lower.includes(cat));
       });
     }
+
+    // Phase 2: Scrape each product URL
+    const total = targetUrls.length;
+
+    for (let i = 0; i < total; i++) {
+      const url = targetUrls[i];
+      onProgress?.({ phase: "scraping", current: i + 1, total, currentUrl: url });
+
+      let retries = 0;
+      try {
+        const product = await withRetry(
+          () => extractProduct(url, config, browser),
+          MAX_RETRIES,
+        );
+        products.push(product);
+      } catch (err) {
+        retries = MAX_RETRIES;
+        errors.push({
+          url,
+          error: err instanceof Error ? err.message : String(err),
+          retries,
+        });
+      }
+    }
+  } finally {
+    await browser.close();
   }
 
   return { products, errors };

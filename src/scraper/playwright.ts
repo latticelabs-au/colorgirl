@@ -74,13 +74,15 @@ export class BrowserManager {
    * Close the browser and clean up resources.
    */
   async close(): Promise<void> {
-    if (this.context) {
-      await this.context.close();
+    try {
+      await this.context?.close();
+    } finally {
       this.context = null;
-    }
-    if (this.browser) {
-      await this.browser.close();
-      this.browser = null;
+      try {
+        await this.browser?.close();
+      } finally {
+        this.browser = null;
+      }
     }
   }
 
