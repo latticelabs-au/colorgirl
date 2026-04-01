@@ -412,6 +412,17 @@ describe("variable product", () => {
     expect(getCell(rows, 2, "Short description", rows[0])).toBe("");
     expect(getCell(rows, 2, "Description", rows[0])).toBe("");
   });
+
+  it("In stock? is '1' on both parent and variation rows", () => {
+    const csv = buildCsv([makeVariableProduct()], baseConfig);
+    const rows = parseCsv(csv);
+    // parent row (index 1)
+    expect(getCell(rows, 1, "In stock?", rows[0])).toBe("1");
+    // first variation (index 2)
+    expect(getCell(rows, 2, "In stock?", rows[0])).toBe("1");
+    // second variation (index 3)
+    expect(getCell(rows, 3, "In stock?", rows[0])).toBe("1");
+  });
 });
 
 // ---------------------------------------------------------------------------

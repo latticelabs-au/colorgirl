@@ -214,7 +214,7 @@ function buildVariationRow(
     "Short description": "",
     "Description": "",
     "Tax status": "",
-    "In stock?": "",
+    "In stock?": "1",
     [weightKey]: formatNumber(variation.dimensions?.weight),
     [lengthKey]: "",
     [widthKey]: formatNumber(variation.dimensions?.width),
