@@ -9,6 +9,7 @@ export {
   getProductsQuery,
   getProgressQuery,
   getPreviewQuery,
+  getSuggestedConfigQuery,
 } from "./scrape-workflow.js";
 
 export type {

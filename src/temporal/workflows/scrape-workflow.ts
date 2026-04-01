@@ -39,6 +39,8 @@ export const getStatusQuery = defineQuery<WorkflowStatus>("getStatus");
 export const getProductsQuery = defineQuery<GroupedProduct[]>("getProducts");
 export const getProgressQuery = defineQuery<WorkflowProgress>("getProgress");
 export const getPreviewQuery = defineQuery<EnrichedProduct[]>("getPreview");
+export const getSuggestedConfigQuery =
+  defineQuery<SiteConfig | null>("getSuggestedConfig");
 
 // ── Types ────────────────────────────────────────────────
 export interface WorkflowStatus {
@@ -128,6 +130,7 @@ export async function scrapeWorkflow(
     total: 0,
     percentage: 0,
   };
+  let suggestedConfig: SiteConfig | null = null;
   let approvedConfig: SiteConfig | null = null;
   let groupedProducts: GroupedProduct[] = [];
   let enrichedProducts: EnrichedProduct[] = [];
@@ -139,6 +142,7 @@ export async function scrapeWorkflow(
   setHandler(getProductsQuery, () => groupedProducts);
   setHandler(getProgressQuery, () => progress);
   setHandler(getPreviewQuery, () => enrichedProducts);
+  setHandler(getSuggestedConfigQuery, () => suggestedConfig);
 
   // Register signal handlers
   setHandler(configApprovedSignal, (config) => {
@@ -155,7 +159,7 @@ export async function scrapeWorkflow(
     // 1. Analyse site
     status = { phase: "analyzing", message: `Analysing ${input.url}...` };
     const siteConfig = await analyzeSiteActivity(input.url);
-    approvedConfig = siteConfig; // default — TUI can override
+    suggestedConfig = siteConfig;
 
     // 2. Wait for config approval
     status = {
