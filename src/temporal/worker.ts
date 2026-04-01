@@ -1,4 +1,5 @@
 import { NativeConnection, Worker } from "@temporalio/worker";
+import { fileURLToPath } from "url";
 import * as activities from "./activities/index.js";
 import { TASK_QUEUE } from "./client.js";
 
@@ -8,8 +9,7 @@ export async function runWorker(address?: string): Promise<void> {
   });
 
   const worker = await Worker.create({
-    workflowsPath: new URL("./workflows/scrape-workflow.js", import.meta.url)
-      .pathname,
+    workflowsPath: fileURLToPath(new URL("./workflows/scrape-workflow.js", import.meta.url)),
     activities,
     taskQueue: TASK_QUEUE,
     connection,

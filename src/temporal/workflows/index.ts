@@ -10,6 +10,7 @@ export {
   getProgressQuery,
   getPreviewQuery,
   getSuggestedConfigQuery,
+  getScrapeErrorsQuery,
 } from "./scrape-workflow.js";
 
 export type {

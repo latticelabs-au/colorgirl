@@ -15,6 +15,7 @@ import type {
   EnrichedProduct,
   BusinessConfig,
 } from "../../pipeline/models.js";
+import type { ScrapeError } from "../../scraper/engine.js";
 
 const {
   analyzeSiteActivity,
@@ -41,6 +42,10 @@ export const getProgressQuery = defineQuery<WorkflowProgress>("getProgress");
 export const getPreviewQuery = defineQuery<EnrichedProduct[]>("getPreview");
 export const getSuggestedConfigQuery =
   defineQuery<SiteConfig | null>("getSuggestedConfig");
+export const getScrapeErrorsQuery = defineQuery<ScrapeError[]>("getScrapeErrors");
+
+// ── Constants ───────────────────────────────────────────
+const APPROVAL_TIMEOUT = "24 hours";
 
 // ── Types ────────────────────────────────────────────────
 export interface WorkflowStatus {
@@ -103,9 +108,11 @@ export function mergeEnrichment(
     keywords: string;
   }>,
 ): EnrichedProduct[] {
+  const descMap = new Map(descriptions.map((d) => [d.parentSku, d]));
+  const seoMap = new Map(seoData.map((s) => [s.parentSku, s]));
   return products.map((p) => {
-    const desc = descriptions.find((d) => d.parentSku === p.parentSku);
-    const seo = seoData.find((s) => s.parentSku === p.parentSku);
+    const desc = descMap.get(p.parentSku);
+    const seo = seoMap.get(p.parentSku);
     return {
       ...p,
       shortDescription: desc?.shortDescription ?? "",
@@ -136,6 +143,7 @@ export async function scrapeWorkflow(
   let enrichedProducts: EnrichedProduct[] = [];
   let approvedSkus: string[] | null = null;
   let exportApproved = false;
+  let scrapeErrors: ScrapeError[] = [];
 
   // Register query handlers
   setHandler(getStatusQuery, () => status);
@@ -143,6 +151,7 @@ export async function scrapeWorkflow(
   setHandler(getProgressQuery, () => progress);
   setHandler(getPreviewQuery, () => enrichedProducts);
   setHandler(getSuggestedConfigQuery, () => suggestedConfig);
+  setHandler(getScrapeErrorsQuery, () => scrapeErrors);
 
   // Register signal handlers
   setHandler(configApprovedSignal, (config) => {
@@ -166,7 +175,10 @@ export async function scrapeWorkflow(
       phase: "awaiting-config",
       message: "Waiting for config approval...",
     };
-    await condition(() => approvedConfig !== null);
+    const configApproved = await condition(() => approvedConfig !== null, APPROVAL_TIMEOUT);
+    if (!configApproved) {
+      throw new Error("Timed out waiting for config approval");
+    }
     const config = approvedConfig!;
 
     // 3. Scrape
@@ -184,12 +196,14 @@ export async function scrapeWorkflow(
         };
         const result = await scrapeCategoryActivity(config, categories[i]);
         allProducts.push(...result.products);
+        scrapeErrors.push(...result.errors);
       }
     } else {
       // No category-list discovery — scrape everything in one pass
       progress = { phase: "scraping", current: 1, total: 1, percentage: 100 };
       const result = await scrapeCategoryActivity(config);
       allProducts.push(...result.products);
+      scrapeErrors.push(...result.errors);
     }
 
     // 4. Group products
@@ -203,13 +217,14 @@ export async function scrapeWorkflow(
       phase: "awaiting-products",
       message: `${groupedProducts.length} products grouped. Waiting for approval...`,
     };
-    await condition(() => approvedSkus !== null);
-    // Filter to approved SKUs
-    if (approvedSkus!.length > 0) {
-      groupedProducts = groupedProducts.filter((p) =>
-        approvedSkus!.includes(p.parentSku),
-      );
+    const productsApproved = await condition(() => approvedSkus !== null, APPROVAL_TIMEOUT);
+    if (!productsApproved) {
+      throw new Error("Timed out waiting for product approval");
     }
+    // Filter to approved SKUs — empty array means approve none
+    groupedProducts = groupedProducts.filter((p) =>
+      approvedSkus!.includes(p.parentSku),
+    );
 
     // 6. AI enrichment
     status = {
@@ -230,7 +245,10 @@ export async function scrapeWorkflow(
       phase: "awaiting-export",
       message: "Preview ready. Waiting for export approval...",
     };
-    await condition(() => exportApproved);
+    const exportWasApproved = await condition(() => exportApproved, APPROVAL_TIMEOUT);
+    if (!exportWasApproved) {
+      throw new Error("Timed out waiting for export approval");
+    }
 
     // 9. Build CSV
     status = { phase: "exporting", message: "Building CSV..." };
