@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { render, useApp, useInput } from "ink";
 import { Client } from "@temporalio/client";
 import { createTemporalClient, TASK_QUEUE } from "../temporal/client.js";
@@ -99,20 +99,26 @@ export function App(): React.ReactElement {
   const [exportRowCount, setExportRowCount] = useState(0);
 
   // Connect to Temporal on mount
+  const clientRef = useRef<Client | null>(null);
+
   useEffect(() => {
     let cancelled = false;
     createTemporalClient()
       .then((c) => {
-        if (!cancelled) {
-          setClient(c);
-          setIsConnected(true);
+        if (cancelled) {
+          c.connection.close();
+          return;
         }
+        clientRef.current = c;
+        setClient(c);
+        setIsConnected(true);
       })
       .catch(() => {
         if (!cancelled) setIsConnected(false);
       });
     return () => {
       cancelled = true;
+      clientRef.current?.connection.close();
     };
   }, []);
 
@@ -156,7 +162,10 @@ export function App(): React.ReactElement {
     if (!workflowId || !client) return;
 
     const handle = client.workflow.getHandle(workflowId);
+    let polling = false;
     const interval = setInterval(async () => {
+      if (polling) return;
+      polling = true;
       try {
         const status = await handle.query<WorkflowStatus>(getStatusQuery);
         setWorkflowStatus(status);
@@ -227,6 +236,8 @@ export function App(): React.ReactElement {
         }
       } catch {
         // Query may fail transiently during workflow transitions
+      } finally {
+        polling = false;
       }
     }, 1000);
 

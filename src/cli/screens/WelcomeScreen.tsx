@@ -1,5 +1,5 @@
 import React from "react";
-import { Box, Text } from "ink";
+import { Box, Text, useInput } from "ink";
 import { Header, StatusBar, KeyHint } from "../components/index.js";
 import { theme } from "../theme.js";
 
@@ -12,8 +12,14 @@ interface WelcomeScreenProps {
 export function WelcomeScreen({
   version,
   isConnected,
-  onContinue: _onContinue,
+  onContinue,
 }: WelcomeScreenProps): React.ReactElement {
+  useInput((_input, key) => {
+    if (key.return) {
+      onContinue();
+    }
+  });
+
   return (
     <Box flexDirection="column" gap={1}>
       <Header version={version} />
