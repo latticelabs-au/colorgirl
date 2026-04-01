@@ -147,26 +147,18 @@ export function groupProducts(
       }
     }
 
-    // b. Apply attribute transforms
-    let variations: RawProduct[];
-    if (config.attributes && config.attributes.length > 0) {
-      variations = deduped.map((p) => {
-        const transformedAttributes: Record<string, string> = {
-          ...p.attributes,
-        };
-        for (const attrDef of config.attributes!) {
-          if (attrDef.transform && attrDef.slug in transformedAttributes) {
-            transformedAttributes[attrDef.slug] = applyTransform(
-              transformedAttributes[attrDef.slug],
-              attrDef.transform
-            );
+    // b. Apply attribute transforms (always shallow-clone to avoid mutating originals)
+    const variations: RawProduct[] = deduped.map((p) => {
+      const attrs = { ...p.attributes };
+      if (config.attributes) {
+        for (const attrDef of config.attributes) {
+          if (attrDef.transform && attrDef.slug in attrs) {
+            attrs[attrDef.slug] = applyTransform(attrs[attrDef.slug], attrDef.transform);
           }
         }
-        return { ...p, attributes: transformedAttributes };
-      });
-    } else {
-      variations = deduped;
-    }
+      }
+      return { ...p, attributes: attrs };
+    });
 
     // c. Determine type
     const type: "simple" | "variable" =
@@ -180,18 +172,21 @@ export function groupProducts(
     // e. Name — base name of the first product in the bucket
     const name = deriveBaseName(deduped[0].name) || deduped[0].name;
 
-    // f. categoryPath — from the first product
-    const categoryPath = deduped[0].categoryPath;
+    // f. categoryPath — from the first product (shallow copy to avoid aliasing)
+    const categoryPath = [...variations[0].categoryPath];
 
     // g. Collect distinct attribute values across all variations
     const attributeValues: Record<string, string[]> = {};
+    const seenAttrValues: Record<string, Set<string>> = {};
     for (const variation of variations) {
       for (const [slug, value] of Object.entries(variation.attributes)) {
         if (value === undefined || value === "") continue;
-        if (!attributeValues[slug]) {
+        if (!seenAttrValues[slug]) {
+          seenAttrValues[slug] = new Set();
           attributeValues[slug] = [];
         }
-        if (!attributeValues[slug].includes(value)) {
+        if (!seenAttrValues[slug].has(value)) {
+          seenAttrValues[slug].add(value);
           attributeValues[slug].push(value);
         }
       }
