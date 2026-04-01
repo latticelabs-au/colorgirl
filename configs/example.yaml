@@ -1,0 +1,95 @@
+# Example SiteConfig for a trophy supplier website
+# This demonstrates the full configuration schema.
+# Copy this file and modify for your supplier.
+
+name: "example-trophies"
+baseUrl: "https://example-trophies.com.au"
+
+# How to discover product pages
+discovery:
+  type: "category-list"
+  sections:
+    - name: "Trophies"
+      path: "/trophies"
+      categories:
+        - "football"
+        - "cricket"
+        - "basketball"
+        - "dance"
+    - name: "Medals"
+      path: "/medals"
+      categories:
+        - "football"
+        - "cricket"
+        - "swimming"
+
+# CSS selectors for extracting product data from product pages
+selectors:
+  name: ".product-title h1"
+  sku: ".product-sku span"
+  price: ".product-price .amount"
+  images: ".product-gallery img"
+  description: ".product-description"
+  shortDescription: ".product-short-description"
+  weight: ".product-weight"
+  width: ".product-width"
+  height: ".product-height"
+  categoryBreadcrumb: ".breadcrumb"
+
+# Dynamic product attributes
+attributes:
+  - name: "Size"
+    slug: "pa_size"
+    isVariation: true
+    isGlobal: true
+    sizeLabels: true
+
+  - name: "Colour"
+    slug: "pa_colour"
+    isVariation: true
+    isGlobal: true
+    transform: "colour_cleanup"
+
+  - name: "Material"
+    slug: "pa_material"
+    isVariation: false
+    isGlobal: true
+    selector: ".product-material"
+
+  - name: "Insert size"
+    slug: "pa_insert-size"
+    isVariation: false
+    isGlobal: false
+
+  - name: "Medal size"
+    slug: "pa_medal-size"
+    isVariation: false
+    isGlobal: false
+    selector: ".medal-diameter"
+    transform: "format_number"
+
+  - name: "Thickness"
+    slug: "pa_thickness"
+    isVariation: false
+    isGlobal: false
+    selector: ".product-thickness"
+    transform: "format_number"
+
+  - name: "Engraving plate size"
+    slug: "pa_engraving-plate"
+    isVariation: false
+    isGlobal: false
+
+# Milliseconds between requests
+rateLimit: 2000
+
+# How variants are discovered
+variants:
+  type: "separate-pages"
+  linkSelector: ".product-colours a"
+
+# Categories to skip (already imported)
+skipCategories:
+  - "archery"
+  - "badminton"
+  - "wrestling"

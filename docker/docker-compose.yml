@@ -1,0 +1,53 @@
+version: "3.8"
+
+services:
+  # Temporal server with PostgreSQL persistence
+  temporal-db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: temporal
+      POSTGRES_PASSWORD: temporal
+      POSTGRES_DB: temporal
+    ports:
+      - "5432:5432"
+    volumes:
+      - temporal-db-data:/var/lib/postgresql/data
+
+  temporal:
+    image: temporalio/auto-setup:latest
+    depends_on:
+      - temporal-db
+    environment:
+      - DB=postgresql
+      - DB_PORT=5432
+      - POSTGRES_USER=temporal
+      - POSTGRES_PWD=temporal
+      - POSTGRES_SEEDS=temporal-db
+    ports:
+      - "7233:7233"  # gRPC (CLI connects here)
+
+  # Temporal Web UI (optional, for debugging)
+  temporal-ui:
+    image: temporalio/ui:latest
+    depends_on:
+      - temporal
+    environment:
+      - TEMPORAL_ADDRESS=temporal:7233
+    ports:
+      - "8080:8080"
+
+  # ColorGirl worker
+  colorgirl-worker:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.worker
+    depends_on:
+      - temporal
+    environment:
+      - TEMPORAL_ADDRESS=temporal:7233
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+    volumes:
+      - ../output:/app/output  # CSV output directory
+
+volumes:
+  temporal-db-data:

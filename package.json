@@ -7,10 +7,13 @@
   },
   "scripts": {
     "build": "tsup",
-    "dev": "tsup --watch",
-    "typecheck": "tsc --noEmit",
+    "dev": "tsx src/cli/app.tsx",
+    "worker": "tsx src/temporal/worker.ts",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "docker:up": "docker compose -f docker/docker-compose.yml up -d",
+    "docker:down": "docker compose -f docker/docker-compose.yml down"
   },
   "dependencies": {
     "@anthropic-ai/claude-code": "latest",
@@ -34,6 +37,7 @@
     "@types/react": "^18.3.23",
     "ink-testing-library": "^4.0.0",
     "tsup": "^8.4.0",
+    "tsx": "^4.19.3",
     "typescript": "^5.8.3",
     "vitest": "^3.1.1"
   }
