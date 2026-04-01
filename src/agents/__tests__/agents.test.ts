@@ -13,7 +13,7 @@ vi.mock("@anthropic-ai/claude-code", () => ({
 }));
 
 // Import modules under test AFTER the mock is set up
-import { executeAgent } from "../executor.js";
+import { executeAgent, parseJsonResponse } from "../executor.js";
 import { analyzeSite } from "../site-recon.js";
 import { generateDescriptions } from "../descriptions.js";
 import { generateSeo } from "../seo.js";
@@ -200,6 +200,36 @@ describe("executeAgent", () => {
     expect(mockQuery).toHaveBeenCalledWith(
       expect.objectContaining({ maxTokens: 4096 }),
     );
+  });
+});
+
+// ===========================================================================
+// parseJsonResponse
+// ===========================================================================
+
+describe("parseJsonResponse", () => {
+  it("parses plain JSON", () => {
+    const result = parseJsonResponse<{ a: number }>('{"a": 1}');
+    expect(result).toEqual({ a: 1 });
+  });
+
+  it("strips ```json fences", () => {
+    const result = parseJsonResponse<number[]>('```json\n[1,2,3]\n```');
+    expect(result).toEqual([1, 2, 3]);
+  });
+
+  it("strips ``` fences without language tag", () => {
+    const result = parseJsonResponse<number[]>('```\n[1]\n```');
+    expect(result).toEqual([1]);
+  });
+
+  it("trims surrounding whitespace", () => {
+    const result = parseJsonResponse<{ x: string }>('  \n {"x":"y"} \n ');
+    expect(result).toEqual({ x: "y" });
+  });
+
+  it("throws on invalid JSON", () => {
+    expect(() => parseJsonResponse("{bad")).toThrow();
   });
 });
 
@@ -580,6 +610,59 @@ describe("generateSeo", () => {
     await expect(
       generateSeo([makeGroupedProduct()], makeBusinessConfig()),
     ).rejects.toThrow("Failed to parse SEO JSON");
+  });
+
+  it("handles markdown-fenced JSON response", async () => {
+    const fenced = "```json\n" + JSON.stringify(mockSeoData) + "\n```";
+    mockQuery.mockReturnValue(
+      makeAsyncIterable([
+        { content: [{ type: "text", text: fenced }] },
+      ]),
+    );
+
+    const result = await generateSeo([makeGroupedProduct()], makeBusinessConfig());
+    expect(result).toHaveLength(1);
+  });
+
+  it("batches products when exceeding batch size", async () => {
+    // Create 150 products — should result in 2 API calls (100 + 50)
+    const products: GroupedProduct[] = [];
+    const allSeo = [];
+    for (let i = 0; i < 150; i++) {
+      products.push(
+        makeGroupedProduct({ parentSku: `PROD-${String(i).padStart(3, "0")}` }),
+      );
+      allSeo.push({
+        parentSku: `PROD-${String(i).padStart(3, "0")}`,
+        metaTitle: `Title ${i}`,
+        metaDescription: `Description ${i}`,
+        permalink: `product-${i}`,
+        keywords: `keyword ${i}`,
+      });
+    }
+
+    // First call returns first 100, second call returns remaining 50
+    const batch1 = allSeo.slice(0, 100);
+    const batch2 = allSeo.slice(100);
+
+    mockQuery
+      .mockReturnValueOnce(
+        makeAsyncIterable([
+          { content: [{ type: "text", text: JSON.stringify(batch1) }] },
+        ]),
+      )
+      .mockReturnValueOnce(
+        makeAsyncIterable([
+          { content: [{ type: "text", text: JSON.stringify(batch2) }] },
+        ]),
+      );
+
+    const result = await generateSeo(products, makeBusinessConfig());
+
+    expect(mockQuery).toHaveBeenCalledTimes(2);
+    expect(result).toHaveLength(150);
+    expect(result[0].parentSku).toBe("PROD-000");
+    expect(result[149].parentSku).toBe("PROD-149");
   });
 
   it("throws when an SEO entry is missing required fields", async () => {

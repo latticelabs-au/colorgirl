@@ -7,7 +7,7 @@
  */
 
 import type { GroupedProduct } from "../pipeline/models.js";
-import { executeAgent } from "./executor.js";
+import { executeAgent, parseJsonResponse } from "./executor.js";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -48,8 +48,10 @@ Style rules:
 - Restrained, structural, non-marketing tone
 - Do not include location information in descriptions
 - Do not repeat the product name excessively
+- Mention the keyword only once in descriptions
 - Use "dot points" format for long description (HTML <ul><li> tags)
 - Keep descriptions factual and concise
+- The long description must differ from the meta_description (SEO field generated separately)
 
 IMPORTANT: Respond with ONLY a valid JSON array. Each element must have:
 { "parentSku": string, "shortDescription": string, "longDescription": string }
@@ -108,24 +110,20 @@ export async function generateDescriptions(
       maxTokens: MAX_TOKENS,
     });
 
-    // Strip potential markdown code fences
-    let jsonText = response.text.trim();
-    if (jsonText.startsWith("```")) {
-      jsonText = jsonText.replace(/^```(?:json)?\s*\n?/, "").replace(/\n?```\s*$/, "");
-    }
-
-    let descriptions: ProductDescription[];
+    let parsed: unknown;
     try {
-      descriptions = JSON.parse(jsonText) as ProductDescription[];
+      parsed = parseJsonResponse<unknown>(response.text);
     } catch {
       throw new Error(
-        `Failed to parse description JSON from agent response: ${jsonText.slice(0, 200)}`,
+        `Failed to parse description JSON from agent response: ${response.text.slice(0, 200)}`,
       );
     }
 
-    if (!Array.isArray(descriptions)) {
+    if (!Array.isArray(parsed)) {
       throw new Error("Description agent response is not an array");
     }
+
+    const descriptions = parsed as ProductDescription[];
 
     // Validate each entry
     for (const desc of descriptions) {

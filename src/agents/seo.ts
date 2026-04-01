@@ -7,7 +7,7 @@
  */
 
 import type { GroupedProduct, BusinessConfig } from "../pipeline/models.js";
-import { executeAgent } from "./executor.js";
+import { executeAgent, parseJsonResponse } from "./executor.js";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -15,6 +15,7 @@ import { executeAgent } from "./executor.js";
 
 const MODEL = "claude-sonnet-4-6";
 const MAX_TOKENS = 8192;
+const BATCH_SIZE = 100;
 
 // ---------------------------------------------------------------------------
 // Types
@@ -54,7 +55,7 @@ For each product, generate:
 2. metaDescription: Use this format: "${businessConfig.seoTemplates.metaDescription}"
    - First sentence: describe the product concisely
    - Second sentence: "Prepared locally in ${businessConfig.location} for ${businessConfig.region} {keywords}."
-   - Must be different from the product's long description
+   - The meta_description must be different from the product's long description
    - Keep under 160 characters total
 
 3. permalink: A URL-friendly slug for the product
@@ -110,49 +111,54 @@ export async function generateSeo(
 ): Promise<ProductSeo[]> {
   if (products.length === 0) return [];
 
-  const summaries = products.map(buildProductSummary);
+  const allSeoData: ProductSeo[] = [];
+  const systemPrompt = buildSystemPrompt(businessConfig);
 
-  const prompt = `Generate SEO fields for these ${products.length} products:\n\n${JSON.stringify(summaries, null, 2)}`;
+  // Process in batches
+  for (let i = 0; i < products.length; i += BATCH_SIZE) {
+    const batch = products.slice(i, i + BATCH_SIZE);
+    const summaries = batch.map(buildProductSummary);
 
-  const response = await executeAgent(prompt, {
-    model: MODEL,
-    systemPrompt: buildSystemPrompt(businessConfig),
-    maxTokens: MAX_TOKENS,
-  });
+    const prompt = `Generate SEO fields for these ${batch.length} products:\n\n${JSON.stringify(summaries, null, 2)}`;
 
-  // Strip potential markdown code fences
-  let jsonText = response.text.trim();
-  if (jsonText.startsWith("```")) {
-    jsonText = jsonText.replace(/^```(?:json)?\s*\n?/, "").replace(/\n?```\s*$/, "");
-  }
+    const response = await executeAgent(prompt, {
+      model: MODEL,
+      systemPrompt,
+      maxTokens: MAX_TOKENS,
+    });
 
-  let seoData: ProductSeo[];
-  try {
-    seoData = JSON.parse(jsonText) as ProductSeo[];
-  } catch {
-    throw new Error(
-      `Failed to parse SEO JSON from agent response: ${jsonText.slice(0, 200)}`,
-    );
-  }
-
-  if (!Array.isArray(seoData)) {
-    throw new Error("SEO agent response is not an array");
-  }
-
-  // Validate each entry
-  for (const entry of seoData) {
-    if (
-      !entry.parentSku ||
-      !entry.metaTitle ||
-      !entry.metaDescription ||
-      !entry.permalink ||
-      !entry.keywords
-    ) {
+    let parsed: unknown;
+    try {
+      parsed = parseJsonResponse<unknown>(response.text);
+    } catch {
       throw new Error(
-        `SEO entry missing required fields: ${JSON.stringify(entry).slice(0, 200)}`,
+        `Failed to parse SEO JSON from agent response: ${response.text.slice(0, 200)}`,
       );
     }
+
+    if (!Array.isArray(parsed)) {
+      throw new Error("SEO agent response is not an array");
+    }
+
+    const seoData = parsed as ProductSeo[];
+
+    // Validate each entry
+    for (const entry of seoData) {
+      if (
+        !entry.parentSku ||
+        !entry.metaTitle ||
+        !entry.metaDescription ||
+        !entry.permalink ||
+        !entry.keywords
+      ) {
+        throw new Error(
+          `SEO entry missing required fields: ${JSON.stringify(entry).slice(0, 200)}`,
+        );
+      }
+    }
+
+    allSeoData.push(...seoData);
   }
 
-  return seoData;
+  return allSeoData;
 }

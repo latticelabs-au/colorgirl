@@ -7,7 +7,7 @@
  */
 
 import type { SiteConfig } from "../pipeline/models.js";
-import { executeAgent } from "./executor.js";
+import { executeAgent, parseJsonResponse } from "./executor.js";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -88,18 +88,12 @@ export async function analyzeSite(url: string): Promise<SiteConfig> {
     maxTokens: MAX_TOKENS,
   });
 
-  // Strip potential markdown code fences from the response
-  let jsonText = response.text.trim();
-  if (jsonText.startsWith("```")) {
-    jsonText = jsonText.replace(/^```(?:json)?\s*\n?/, "").replace(/\n?```\s*$/, "");
-  }
-
   let config: SiteConfig;
   try {
-    config = JSON.parse(jsonText) as SiteConfig;
+    config = parseJsonResponse<SiteConfig>(response.text);
   } catch {
     throw new Error(
-      `Failed to parse SiteConfig JSON from agent response: ${jsonText.slice(0, 200)}`,
+      `Failed to parse SiteConfig JSON from agent response: ${response.text.slice(0, 200)}`,
     );
   }
 

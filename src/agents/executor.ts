@@ -101,3 +101,23 @@ export async function executeAgent(
     usage,
   };
 }
+
+// ---------------------------------------------------------------------------
+// parseJsonResponse
+// ---------------------------------------------------------------------------
+
+/**
+ * Strip markdown fences and parse a JSON string returned by an agent.
+ *
+ * Handles responses wrapped in ```json ... ``` code fences, which models
+ * sometimes produce despite being told not to.
+ *
+ * @throws Error if the text is not valid JSON after stripping fences
+ */
+export function parseJsonResponse<T>(text: string): T {
+  let cleaned = text.trim();
+  if (cleaned.startsWith("```")) {
+    cleaned = cleaned.replace(/^```(?:json)?\s*\n?/, "").replace(/\n?```\s*$/, "");
+  }
+  return JSON.parse(cleaned) as T;
+}
