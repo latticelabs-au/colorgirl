@@ -95,8 +95,8 @@ export interface SelectorMap {
   width?: string;
   height?: string;
   categoryBreadcrumb?: string;
-  /** Fallback for any extra fields keyed by attribute slug */
-  [key: string]: string | undefined;
+  /** Extra selectors keyed by attribute slug */
+  extra?: Record<string, string>;
 }
 
 // ---------------------------------------------------------------------------
@@ -163,6 +163,8 @@ export interface RawProduct {
     height?: number;
   };
   description?: string;
+  shortDescription?: string;  // supplier's original short description
+  scrapedAt: string;  // ISO 8601 timestamp
 }
 
 // ---------------------------------------------------------------------------
