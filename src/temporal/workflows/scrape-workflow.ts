@@ -84,9 +84,16 @@ export interface ScrapeWorkflowInput {
  */
 function deriveCategories(config: SiteConfig): string[] {
   if (config.discovery.type === "category-list") {
+    const skip = new Set(
+      (config.skipCategories ?? []).map((c) => c.toLowerCase()),
+    );
     const categories: string[] = [];
     for (const section of config.discovery.sections) {
-      categories.push(...section.categories);
+      for (const cat of section.categories) {
+        if (!skip.has(cat.toLowerCase())) {
+          categories.push(cat);
+        }
+      }
     }
     return categories;
   }

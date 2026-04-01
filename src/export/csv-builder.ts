@@ -84,7 +84,7 @@ function buildHeaders(config: CsvBuilderConfig): string[] {
 
   const seoHeaders = seoColumnNames(config.seoPlugin ?? "yoast");
 
-  return [...fixed, ...attributeHeaders, ...seoHeaders];
+  return [...fixed, ...attributeHeaders, ...seoHeaders, "permalink", "keywords"];
 }
 
 /** Format category path as "A > B > C". */
@@ -180,6 +180,8 @@ function buildParentRow(
     "Parent": "",
     [seoTitleCol]: product.metaTitle,
     [seoDescCol]: product.metaDescription,
+    "permalink": product.permalink,
+    "keywords": product.keywords,
   };
 
   // Build attribute cells as positional values
@@ -276,6 +278,8 @@ function buildSimpleRow(
     "Parent": "",
     [seoTitleCol]: product.metaTitle,
     [seoDescCol]: product.metaDescription,
+    "permalink": product.permalink,
+    "keywords": product.keywords,
   };
 
   const attrCells = parentAttributeCells(product, config.attributes);

@@ -1,5 +1,5 @@
 import type { SiteConfig, RawProduct } from "../pipeline/models.js";
-import type { BrowserManager } from "./playwright.js";
+import { BrowserManager } from "./playwright.js";
 import { discoverProducts } from "./strategies/index.js";
 
 // ---------------------------------------------------------------------------
@@ -182,9 +182,14 @@ export async function extractProduct(
  */
 export async function scrape(
   options: ScrapeOptions,
-  browser: BrowserManager,
+  browser?: BrowserManager,
 ): Promise<ScrapeResult> {
   const { config, onProgress } = options;
+  const ownsBrowser = !browser;
+  if (!browser) {
+    browser = new BrowserManager({ rateLimit: config.rateLimit });
+    await browser.launch();
+  }
   const products: RawProduct[] = [];
   const errors: ScrapeError[] = [];
 

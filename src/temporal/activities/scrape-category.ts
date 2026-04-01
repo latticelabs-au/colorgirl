@@ -1,5 +1,4 @@
 import { scrape } from "../../scraper/engine.js";
-import { BrowserManager } from "../../scraper/playwright.js";
 import type { SiteConfig, RawProduct } from "../../pipeline/models.js";
 import type { ScrapeError } from "../../scraper/engine.js";
 
@@ -13,14 +12,8 @@ export async function scrapeCategoryActivity(
   config: SiteConfig,
   category?: string,
 ): Promise<ScrapeCategoryResult> {
-  const browser = new BrowserManager({
-    rateLimit: config.rateLimit,
+  return scrape({
+    config,
+    categories: category ? [category] : undefined,
   });
-  return scrape(
-    {
-      config,
-      categories: category ? [category] : undefined,
-    },
-    browser,
-  );
 }

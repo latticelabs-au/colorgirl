@@ -193,7 +193,6 @@ describe("scrapeCategoryActivity", () => {
 
     expect(mockScrape).toHaveBeenCalledWith(
       { config, categories: ["dance"] },
-      expect.anything(), // BrowserManager instance
     );
     expect(result.products).toEqual(products);
     expect(result.errors).toEqual([]);
@@ -207,17 +206,16 @@ describe("scrapeCategoryActivity", () => {
 
     expect(mockScrape).toHaveBeenCalledWith(
       { config, categories: undefined },
-      expect.anything(),
     );
   });
 
-  it("creates a BrowserManager for each call", async () => {
+  it("does not create its own BrowserManager (engine manages lifecycle)", async () => {
     const config = makeSiteConfig();
     mockScrape.mockResolvedValue({ products: [], errors: [] });
 
     await scrapeCategoryActivity(config);
 
-    expect(mockBrowserManager).toHaveBeenCalled();
+    expect(mockBrowserManager).not.toHaveBeenCalled();
   });
 
   it("propagates errors from scrape", async () => {

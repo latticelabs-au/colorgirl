@@ -574,6 +574,37 @@ describe("SEO columns", () => {
       "Football Trophies Inner West | Gold Star Trophy",
     );
   });
+
+  it("permalink and keywords headers are present", () => {
+    const csv = buildCsv([makeSimpleProduct()], baseConfig);
+    const rows = parseCsv(csv);
+    const headers = rows[0];
+    expect(headers).toContain("permalink");
+    expect(headers).toContain("keywords");
+  });
+
+  it("permalink populated on simple product", () => {
+    const csv = buildCsv([makeSimpleProduct()], baseConfig);
+    const rows = parseCsv(csv);
+    expect(getCell(rows, 1, "permalink", rows[0])).toBe("gold-star-football-trophies");
+  });
+
+  it("keywords populated on simple product", () => {
+    const csv = buildCsv([makeSimpleProduct()], baseConfig);
+    const rows = parseCsv(csv);
+    expect(getCell(rows, 1, "keywords", rows[0])).toBe("football trophies");
+  });
+
+  it("permalink and keywords populated on variable parent, empty on variations", () => {
+    const csv = buildCsv([makeVariableProduct()], baseConfig);
+    const rows = parseCsv(csv);
+    expect(getCell(rows, 1, "permalink", rows[0])).toBe("swim-club-swimming-medals");
+    expect(getCell(rows, 1, "keywords", rows[0])).toBe("swimming medals");
+    expect(getCell(rows, 2, "permalink", rows[0])).toBe("");
+    expect(getCell(rows, 2, "keywords", rows[0])).toBe("");
+    expect(getCell(rows, 3, "permalink", rows[0])).toBe("");
+    expect(getCell(rows, 3, "keywords", rows[0])).toBe("");
+  });
 });
 
 // ---------------------------------------------------------------------------
