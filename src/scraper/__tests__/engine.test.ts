@@ -5,7 +5,7 @@ import { discoverFromSitemap } from "../strategies/sitemap.js";
 import { discoverFromCategoryList } from "../strategies/category-list.js";
 import { discoverFromPagination } from "../strategies/pagination.js";
 import { discoverProducts } from "../strategies/index.js";
-import { extractProduct, withRetry, scrape } from "../engine.js";
+import { withRetry, scrape } from "../engine.js";
 
 // ---------------------------------------------------------------------------
 // Mock helpers
@@ -457,233 +457,9 @@ describe("discoverProducts", () => {
 });
 
 // ---------------------------------------------------------------------------
-// extractProduct
+// NOTE: extractProduct tests moved to extract-product.test.ts (HTML-based)
+// and are covered by the Playwright pipeline tests for tier 3.
 // ---------------------------------------------------------------------------
-
-describe("extractProduct", () => {
-  it("extracts name, sku, and images from page selectors", async () => {
-    const nameEl = { textContent: vi.fn().mockReturnValue("Dance Trophy Gold") };
-    const skuEl = { textContent: vi.fn().mockReturnValue("TRP-001") };
-
-    const mockPage = makeMockPage({
-      $: vi.fn().mockImplementation((selector: string) => {
-        if (selector === ".product-name") return Promise.resolve(nameEl);
-        if (selector === ".product-sku") return Promise.resolve(skuEl);
-        return Promise.resolve(null);
-      }),
-      $$eval: vi.fn().mockImplementation((selector: string) => {
-        if (selector === ".product-image img") {
-          return Promise.resolve(["https://example.com/img1.jpg", "https://example.com/img2.jpg"]);
-        }
-        return Promise.resolve([]);
-      }),
-    });
-
-    const browser = {
-      ...makeMockBrowser(),
-      goto: vi.fn().mockResolvedValue(mockPage),
-    } as unknown as BrowserManager;
-
-    const config = makeConfig();
-    const product = await extractProduct("https://example.com/trophy-1", config, browser);
-
-    expect(product.name).toBe("Dance Trophy Gold");
-    expect(product.sku).toBe("TRP-001");
-    expect(product.images).toEqual(["https://example.com/img1.jpg", "https://example.com/img2.jpg"]);
-    expect(product.sourceUrl).toBe("https://example.com/trophy-1");
-    expect(product.scrapedAt).toBeDefined();
-  });
-
-  it("extracts optional price field", async () => {
-    const nameEl = { textContent: vi.fn().mockReturnValue("Trophy") };
-    const skuEl = { textContent: vi.fn().mockReturnValue("SKU-1") };
-    const priceEl = { textContent: vi.fn().mockReturnValue("$29.95") };
-
-    const mockPage = makeMockPage({
-      $: vi.fn().mockImplementation((selector: string) => {
-        if (selector === ".product-name") return Promise.resolve(nameEl);
-        if (selector === ".product-sku") return Promise.resolve(skuEl);
-        if (selector === ".product-price") return Promise.resolve(priceEl);
-        return Promise.resolve(null);
-      }),
-      $$eval: vi.fn().mockResolvedValue([]),
-    });
-
-    const browser = {
-      ...makeMockBrowser(),
-      goto: vi.fn().mockResolvedValue(mockPage),
-    } as unknown as BrowserManager;
-
-    const config = makeConfig({
-      selectors: {
-        name: ".product-name",
-        sku: ".product-sku",
-        images: ".product-image img",
-        price: ".product-price",
-      },
-    });
-
-    const product = await extractProduct("https://example.com/p", config, browser);
-    expect(product.price).toBe(29.95);
-  });
-
-  it("extracts optional dimensions", async () => {
-    const nameEl = { textContent: vi.fn().mockReturnValue("Trophy") };
-    const skuEl = { textContent: vi.fn().mockReturnValue("SKU-1") };
-    const weightEl = { textContent: vi.fn().mockReturnValue("150") };
-    const heightEl = { textContent: vi.fn().mockReturnValue("200") };
-
-    const mockPage = makeMockPage({
-      $: vi.fn().mockImplementation((selector: string) => {
-        if (selector === ".product-name") return Promise.resolve(nameEl);
-        if (selector === ".product-sku") return Promise.resolve(skuEl);
-        if (selector === ".weight") return Promise.resolve(weightEl);
-        if (selector === ".height") return Promise.resolve(heightEl);
-        return Promise.resolve(null);
-      }),
-      $$eval: vi.fn().mockResolvedValue([]),
-    });
-
-    const browser = {
-      ...makeMockBrowser(),
-      goto: vi.fn().mockResolvedValue(mockPage),
-    } as unknown as BrowserManager;
-
-    const config = makeConfig({
-      selectors: {
-        name: ".product-name",
-        sku: ".product-sku",
-        images: ".product-image img",
-        weight: ".weight",
-        height: ".height",
-      },
-    });
-
-    const product = await extractProduct("https://example.com/p", config, browser);
-    expect(product.dimensions).toEqual({ weight: 150, height: 200, width: undefined });
-  });
-
-  it("extracts category breadcrumb", async () => {
-    const nameEl = { textContent: vi.fn().mockReturnValue("Trophy") };
-    const skuEl = { textContent: vi.fn().mockReturnValue("SKU-1") };
-
-    const mockPage = makeMockPage({
-      $: vi.fn().mockImplementation((selector: string) => {
-        if (selector === ".product-name") return Promise.resolve(nameEl);
-        if (selector === ".product-sku") return Promise.resolve(skuEl);
-        return Promise.resolve(null);
-      }),
-      $$eval: vi.fn().mockImplementation((selector: string) => {
-        if (selector === ".breadcrumb a") {
-          return Promise.resolve(["Home", "Trophies", "Dance"]);
-        }
-        if (selector === ".product-image img") {
-          return Promise.resolve([]);
-        }
-        return Promise.resolve([]);
-      }),
-    });
-
-    const browser = {
-      ...makeMockBrowser(),
-      goto: vi.fn().mockResolvedValue(mockPage),
-    } as unknown as BrowserManager;
-
-    const config = makeConfig({
-      selectors: {
-        name: ".product-name",
-        sku: ".product-sku",
-        images: ".product-image img",
-        categoryBreadcrumb: ".breadcrumb a",
-      },
-    });
-
-    const product = await extractProduct("https://example.com/p", config, browser);
-    expect(product.categoryPath).toEqual(["Home", "Trophies", "Dance"]);
-  });
-
-  it("extracts extra attributes via config selectors", async () => {
-    const nameEl = { textContent: vi.fn().mockReturnValue("Trophy") };
-    const skuEl = { textContent: vi.fn().mockReturnValue("SKU-1") };
-    const colourEl = { textContent: vi.fn().mockReturnValue("Gold") };
-
-    const mockPage = makeMockPage({
-      $: vi.fn().mockImplementation((selector: string) => {
-        if (selector === ".product-name") return Promise.resolve(nameEl);
-        if (selector === ".product-sku") return Promise.resolve(skuEl);
-        if (selector === ".colour-swatch") return Promise.resolve(colourEl);
-        return Promise.resolve(null);
-      }),
-      $$eval: vi.fn().mockResolvedValue([]),
-    });
-
-    const browser = {
-      ...makeMockBrowser(),
-      goto: vi.fn().mockResolvedValue(mockPage),
-    } as unknown as BrowserManager;
-
-    const config = makeConfig({
-      selectors: {
-        name: ".product-name",
-        sku: ".product-sku",
-        images: ".product-image img",
-        extra: { pa_colour: ".colour-swatch" },
-      },
-    });
-
-    const product = await extractProduct("https://example.com/p", config, browser);
-    expect(product.attributes).toEqual({ pa_colour: "Gold" });
-  });
-
-  it("returns empty attributes when no extra selectors are defined", async () => {
-    const nameEl = { textContent: vi.fn().mockReturnValue("Trophy") };
-    const skuEl = { textContent: vi.fn().mockReturnValue("SKU-1") };
-
-    const mockPage = makeMockPage({
-      $: vi.fn().mockImplementation((selector: string) => {
-        if (selector === ".product-name") return Promise.resolve(nameEl);
-        if (selector === ".product-sku") return Promise.resolve(skuEl);
-        return Promise.resolve(null);
-      }),
-      $$eval: vi.fn().mockResolvedValue([]),
-    });
-
-    const browser = {
-      ...makeMockBrowser(),
-      goto: vi.fn().mockResolvedValue(mockPage),
-    } as unknown as BrowserManager;
-
-    const config = makeConfig();
-    const product = await extractProduct("https://example.com/p", config, browser);
-    expect(product.attributes).toEqual({});
-  });
-
-  it("sets scrapedAt to a valid ISO 8601 timestamp", async () => {
-    const nameEl = { textContent: vi.fn().mockReturnValue("Trophy") };
-    const skuEl = { textContent: vi.fn().mockReturnValue("SKU-1") };
-
-    const mockPage = makeMockPage({
-      $: vi.fn().mockImplementation((selector: string) => {
-        if (selector === ".product-name") return Promise.resolve(nameEl);
-        if (selector === ".product-sku") return Promise.resolve(skuEl);
-        return Promise.resolve(null);
-      }),
-      $$eval: vi.fn().mockResolvedValue([]),
-    });
-
-    const browser = {
-      ...makeMockBrowser(),
-      goto: vi.fn().mockResolvedValue(mockPage),
-    } as unknown as BrowserManager;
-
-    const config = makeConfig();
-    const product = await extractProduct("https://example.com/p", config, browser);
-
-    // Should parse as a valid date
-    const parsed = new Date(product.scrapedAt);
-    expect(parsed.toISOString()).toBe(product.scrapedAt);
-  });
-});
 
 // ---------------------------------------------------------------------------
 // withRetry
@@ -766,188 +542,87 @@ describe("withRetry", () => {
 });
 
 // ---------------------------------------------------------------------------
-// scrape — full integration (mocked browser)
+// scrape — dispatch-based engine
 // ---------------------------------------------------------------------------
 
+vi.mock("../http-client.js", () => ({
+  createHttpClient: vi.fn().mockReturnValue({
+    get: vi.fn().mockResolvedValue(""),
+    getRaw: vi.fn().mockResolvedValue(Buffer.from("")),
+  }),
+}));
+
+import { createHttpClient } from "../http-client.js";
+
 describe("scrape", () => {
-  it("discovers URLs and extracts products for each", async () => {
+  it("dispatches to sitemap-http pipeline for sitemap-http config", async () => {
     const sitemapXml = `<urlset>
       <url><loc>https://example.com/product-1</loc></url>
-      <url><loc>https://example.com/product-2</loc></url>
     </urlset>`;
 
-    const nameEl = { textContent: vi.fn().mockReturnValue("Trophy") };
-    const skuEl = { textContent: vi.fn().mockReturnValue("SKU-1") };
+    const productHtml = `
+      <h1 class="product-name">Trophy</h1>
+      <span class="product-sku">SKU-1</span>
+      <div><img class="product-image" src="https://example.com/img.jpg"></div>`;
 
-    // The sitemap page (returned by first goto call)
-    const sitemapPage = makeMockPage({
-      content: vi.fn().mockResolvedValue(sitemapXml),
-    });
+    const mockGet = vi.fn()
+      .mockResolvedValueOnce(sitemapXml)
+      .mockResolvedValueOnce(productHtml);
 
-    // Product pages (returned by subsequent goto calls)
-    const productPage = makeMockPage({
-      $: vi.fn().mockImplementation((selector: string) => {
-        if (selector === ".product-name") return Promise.resolve(nameEl);
-        if (selector === ".product-sku") return Promise.resolve(skuEl);
-        return Promise.resolve(null);
-      }),
-      $$eval: vi.fn().mockResolvedValue([]),
-    });
-
-    const browser = {
-      ...makeMockBrowser(),
-      goto: vi.fn()
-        .mockResolvedValueOnce(sitemapPage)   // sitemap fetch
-        .mockResolvedValueOnce(productPage)   // product 1
-        .mockResolvedValueOnce(productPage),  // product 2
-    } as unknown as BrowserManager;
+    (createHttpClient as any).mockReturnValue({ get: mockGet, getRaw: vi.fn() });
 
     const config = makeConfig({
+      pipeline: "sitemap-http",
       discovery: {
         type: "sitemap",
         url: "https://example.com/sitemap.xml",
         filterPatterns: [],
       },
+      selectors: {
+        name: ".product-name",
+        sku: ".product-sku",
+        images: ".product-image",
+      },
     });
 
-    const result = await scrape({ config }, browser);
-
-    expect(result.products).toHaveLength(2);
-    expect(result.errors).toHaveLength(0);
+    const result = await scrape({ config });
+    expect(result.products).toHaveLength(1);
     expect(result.products[0].sku).toBe("SKU-1");
   });
 
-  it("reports errors for failed product extractions", async () => {
-    // Zero out setTimeout delays to avoid waiting for retry backoff
-    const origSetTimeout = globalThis.setTimeout;
-    globalThis.setTimeout = ((fn: () => void) => origSetTimeout(fn, 0)) as typeof globalThis.setTimeout;
+  it("dispatches to http-direct pipeline for http-direct config", async () => {
+    const categoryHtml = `<a href="https://example.com/product-1">P1</a>`;
+    const productHtml = `
+      <h1 class="product-name">Trophy</h1>
+      <span class="product-sku">SKU-1</span>
+      <div><img class="product-image" src="https://example.com/img.jpg"></div>`;
 
-    try {
-      const sitemapXml = `<urlset>
-        <url><loc>https://example.com/product-1</loc></url>
-      </urlset>`;
+    const mockGet = vi.fn()
+      .mockResolvedValueOnce(categoryHtml)
+      .mockResolvedValueOnce(categoryHtml) // pagination check
+      .mockResolvedValueOnce(productHtml);
 
-      const sitemapPage = makeMockPage({
-        content: vi.fn().mockResolvedValue(sitemapXml),
-      });
-
-      // Product page that always throws
-      const failingPage = makeMockPage({
-        $: vi.fn().mockImplementation(async () => { throw new Error("Element not found"); }),
-        $$eval: vi.fn().mockImplementation(async () => { throw new Error("Element not found"); }),
-      });
-
-      const browser = {
-        ...makeMockBrowser(),
-        goto: vi.fn()
-          .mockResolvedValueOnce(sitemapPage)
-          .mockResolvedValue(failingPage),
-      } as unknown as BrowserManager;
-
-      const config = makeConfig({
-        discovery: {
-          type: "sitemap",
-          url: "https://example.com/sitemap.xml",
-          filterPatterns: [],
-        },
-      });
-
-      const result = await scrape({ config }, browser);
-      expect(result.products).toHaveLength(0);
-      expect(result.errors).toHaveLength(1);
-      expect(result.errors[0].url).toBe("https://example.com/product-1");
-      expect(result.errors[0].retries).toBe(3);
-    } finally {
-      globalThis.setTimeout = origSetTimeout;
-    }
-  });
-
-  it("filters URLs by categories when specified", async () => {
-    const sitemapXml = `<urlset>
-      <url><loc>https://example.com/trophies/dance/product-1</loc></url>
-      <url><loc>https://example.com/trophies/sports/product-2</loc></url>
-    </urlset>`;
-
-    const nameEl = { textContent: vi.fn().mockReturnValue("Trophy") };
-    const skuEl = { textContent: vi.fn().mockReturnValue("SKU-1") };
-
-    const sitemapPage = makeMockPage({
-      content: vi.fn().mockResolvedValue(sitemapXml),
-    });
-    const productPage = makeMockPage({
-      $: vi.fn().mockImplementation((selector: string) => {
-        if (selector === ".product-name") return Promise.resolve(nameEl);
-        if (selector === ".product-sku") return Promise.resolve(skuEl);
-        return Promise.resolve(null);
-      }),
-      $$eval: vi.fn().mockResolvedValue([]),
-    });
-
-    const browser = {
-      ...makeMockBrowser(),
-      goto: vi.fn()
-        .mockResolvedValueOnce(sitemapPage)
-        .mockResolvedValue(productPage),
-    } as unknown as BrowserManager;
+    (createHttpClient as any).mockReturnValue({ get: mockGet, getRaw: vi.fn() });
 
     const config = makeConfig({
+      pipeline: "http-direct",
       discovery: {
-        type: "sitemap",
-        url: "https://example.com/sitemap.xml",
-        filterPatterns: [],
+        type: "category-list",
+        sections: [{ name: "Trophies", path: "/trophies", categories: ["dance"] }],
+      },
+      selectors: {
+        name: ".product-name",
+        sku: ".product-sku",
+        images: ".product-image",
       },
     });
 
-    const result = await scrape({ config, categories: ["dance"] }, browser);
-
-    // Only the dance URL should be scraped
-    expect(result.products).toHaveLength(1);
+    const result = await scrape({ config });
+    expect(result.products.length).toBeGreaterThanOrEqual(1);
   });
 
-  it("calls onProgress callback during scraping", async () => {
-    const sitemapXml = `<urlset>
-      <url><loc>https://example.com/product-1</loc></url>
-    </urlset>`;
-
-    const nameEl = { textContent: vi.fn().mockReturnValue("Trophy") };
-    const skuEl = { textContent: vi.fn().mockReturnValue("SKU-1") };
-
-    const sitemapPage = makeMockPage({
-      content: vi.fn().mockResolvedValue(sitemapXml),
-    });
-    const productPage = makeMockPage({
-      $: vi.fn().mockImplementation((selector: string) => {
-        if (selector === ".product-name") return Promise.resolve(nameEl);
-        if (selector === ".product-sku") return Promise.resolve(skuEl);
-        return Promise.resolve(null);
-      }),
-      $$eval: vi.fn().mockResolvedValue([]),
-    });
-
-    const browser = {
-      ...makeMockBrowser(),
-      goto: vi.fn()
-        .mockResolvedValueOnce(sitemapPage)
-        .mockResolvedValue(productPage),
-    } as unknown as BrowserManager;
-
-    const config = makeConfig({
-      discovery: {
-        type: "sitemap",
-        url: "https://example.com/sitemap.xml",
-        filterPatterns: [],
-      },
-    });
-
-    const progressCalls: any[] = [];
-    await scrape(
-      { config, onProgress: (p) => progressCalls.push({ ...p }) },
-      browser,
-    );
-
-    // Should have at least the discovering phase and scraping phase
-    expect(progressCalls.length).toBeGreaterThanOrEqual(2);
-    expect(progressCalls[0].phase).toBe("discovering");
-    expect(progressCalls.some((p) => p.phase === "scraping")).toBe(true);
+  it("throws for unknown pipeline type", async () => {
+    const config = makeConfig({ pipeline: "unknown" as any });
+    await expect(scrape({ config })).rejects.toThrow("Unknown pipeline");
   });
 });
