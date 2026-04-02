@@ -70,13 +70,15 @@ export function ConfigScreen({
       return;
     }
 
-    // Navigate fields
+    // Navigate fields — clear editing when moving away
     if (key.tab || key.downArrow) {
+      setEditingField(null);
       const idx = fields.indexOf(focusedField);
       setFocusedField(fields[(idx + 1) % fields.length]!);
       return;
     }
     if (key.upArrow) {
+      setEditingField(null);
       const idx = fields.indexOf(focusedField);
       setFocusedField(fields[(idx - 1 + fields.length) % fields.length]!);
       return;
@@ -132,7 +134,7 @@ export function ConfigScreen({
     }
 
     // Select all / deselect all in category list
-    if (focusedField === "categories" && input === "a") {
+    if (focusedField === "categories" && (input === "a" || input === "A")) {
       setSelectedCategories((prev) =>
         prev.size === allCategories.length ? new Set() : new Set(allCategories),
       );

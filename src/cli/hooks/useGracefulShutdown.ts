@@ -21,7 +21,7 @@ export function useGracefulShutdown(
     if (workflowId) {
       // Print resume command to stderr so it survives Ink's cleanup
       process.stderr.write(
-        `\nWorkflow still running. Resume with:\n  colorgirl --resume ${workflowId}\n\n`,
+        `\nWorkflow still running. Resume with:\n  ./colorgirl --resume ${workflowId}\n\n`,
       );
     }
     exit();

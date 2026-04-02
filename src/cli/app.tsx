@@ -31,7 +31,7 @@ import type { ScrapeError } from "../scraper/engine.js";
 import type { AppError } from "./types.js";
 import { toAppError } from "./errors.js";
 import { theme } from "./theme.js";
-import { useGracefulShutdown } from "./hooks/index.js";
+import { useClearOnResize, useGracefulShutdown } from "./hooks/index.js";
 
 import {
   WelcomeScreen,
@@ -93,6 +93,9 @@ export function App({ initialUrl, resumeWorkflowId }: AppProps = {}): React.Reac
   const [appError, setAppError] = useState<AppError | null>(null);
   const [showHelp, setShowHelp] = useState(false);
 
+  // Clear terminal on resize to avoid ghost output
+  useClearOnResize();
+
   // Graceful shutdown (Esc key with double-press confirmation)
   const { pendingExit } = useGracefulShutdown(client, workflowId, screen);
 
@@ -121,6 +124,7 @@ export function App({ initialUrl, resumeWorkflowId }: AppProps = {}): React.Reac
   // Connect to Temporal on mount
   const clientRef = useRef<Client | null>(null);
   const suggestedConfigRef = useRef<SiteConfig | null>(null);
+  const lastPhaseRef = useRef<string>("");
 
   useEffect(() => {
     let cancelled = false;
@@ -225,81 +229,98 @@ export function App({ initialUrl, resumeWorkflowId }: AppProps = {}): React.Reac
       polling = true;
       try {
         const status = await handle.query<WorkflowStatus>(getStatusQuery);
-        setWorkflowStatus(status);
-        consecutiveFailures = 0; // Reset on success
+        consecutiveFailures = 0;
 
-        const prog = await handle.query<WorkflowProgress>(getProgressQuery);
-        setProgress(prog);
+        const phaseChanged = status.phase !== lastPhaseRef.current;
+        lastPhaseRef.current = status.phase;
 
-        const errors = await handle.query<ScrapeError[]>(getScrapeErrorsQuery);
-        setScrapeErrors(errors);
+        // Only update progress/logs during active phases (not waiting for user input)
+        const activePhases = ["analyzing", "scraping", "enriching", "exporting"];
+        if (activePhases.includes(status.phase)) {
+          setWorkflowStatus(status);
 
-        const workflowLogs = await handle.query<string[]>(getLogsQuery);
-        setLogs(workflowLogs);
+          const prog = await handle.query<WorkflowProgress>(getProgressQuery);
+          setProgress(prog);
 
-        // Phase-based screen transitions
-        switch (status.phase) {
-          case "analyzing":
-            setScreen("analyzing");
-            break;
+          const errors = await handle.query<ScrapeError[]>(getScrapeErrorsQuery);
+          setScrapeErrors(errors);
 
-          case "awaiting-config": {
-            if (!suggestedConfigRef.current) {
-              const config =
-                await handle.query<SiteConfig | null>(getSuggestedConfigQuery);
-              if (config) {
-                suggestedConfigRef.current = config;
-                setSuggestedConfig(config);
+          const workflowLogs = await handle.query<string[]>(getLogsQuery);
+          setLogs(workflowLogs);
+        }
+
+        // Only transition screen when phase changes
+        if (!phaseChanged) {
+          // Still fetch products during scraping (count updates)
+          if (status.phase === "scraping") {
+            const prods = await handle.query<GroupedProduct[]>(getProductsQuery);
+            setProducts(prods);
+          }
+        } else {
+          // Phase-based screen transitions
+          switch (status.phase) {
+            case "analyzing":
+              setScreen("analyzing");
+              break;
+
+            case "awaiting-config": {
+              if (!suggestedConfigRef.current) {
+                const config =
+                  await handle.query<SiteConfig | null>(getSuggestedConfigQuery);
+                if (config) {
+                  suggestedConfigRef.current = config;
+                  setSuggestedConfig(config);
+                }
               }
+              setScreen("config");
+              break;
             }
-            setScreen("config");
-            break;
+
+            case "scraping": {
+              const prods =
+                await handle.query<GroupedProduct[]>(getProductsQuery);
+              setProducts(prods);
+              setScreen("scraping");
+              break;
+            }
+
+            case "awaiting-products": {
+              const prods =
+                await handle.query<GroupedProduct[]>(getProductsQuery);
+              setProducts(prods);
+              setScreen("product-review");
+              break;
+            }
+
+            case "enriching":
+              setScreen("enriching");
+              break;
+
+            case "awaiting-export": {
+              const preview =
+                await handle.query<EnrichedProduct[]>(getPreviewQuery);
+              setEnrichedProducts(preview);
+              setScreen("preview");
+              break;
+            }
+
+            case "exporting":
+              // Stay on preview while exporting
+              break;
+
+            case "complete":
+              setExportFilePath(status.message?.match(/to (.+)$/)?.[1] ?? "");
+              setExportRowCount(
+                Number(status.message?.match(/(\d+) rows/)?.[1] ?? 0),
+              );
+              setScreen("export");
+              break;
+
+            case "error":
+              setAppError(toAppError(status.message ?? "Unknown error", "workflow-error"));
+              setScreen("error");
+              break;
           }
-
-          case "scraping": {
-            const prods =
-              await handle.query<GroupedProduct[]>(getProductsQuery);
-            setProducts(prods);
-            setScreen("scraping");
-            break;
-          }
-
-          case "awaiting-products": {
-            const prods =
-              await handle.query<GroupedProduct[]>(getProductsQuery);
-            setProducts(prods);
-            setScreen("product-review");
-            break;
-          }
-
-          case "enriching":
-            setScreen("enriching");
-            break;
-
-          case "awaiting-export": {
-            const preview =
-              await handle.query<EnrichedProduct[]>(getPreviewQuery);
-            setEnrichedProducts(preview);
-            setScreen("preview");
-            break;
-          }
-
-          case "exporting":
-            // Stay on preview while exporting
-            break;
-
-          case "complete":
-            setExportFilePath(status.message?.match(/to (.+)$/)?.[1] ?? "");
-            setExportRowCount(
-              Number(status.message?.match(/(\d+) rows/)?.[1] ?? 0),
-            );
-            setScreen("export");
-            break;
-
-          case "error":
-            setAppError(toAppError(status.message ?? "Unknown error", "workflow-error"));
-            setScreen("error");
-            break;
         }
       } catch (err) {
         consecutiveFailures++;
@@ -344,7 +365,7 @@ export function App({ initialUrl, resumeWorkflowId }: AppProps = {}): React.Reac
   if (pendingExit) {
     return (
       <Box flexDirection="column" gap={1}>
-        <Text color={theme.warning}>Press Esc again to quit (workflow will be cancelled)</Text>
+        <Text color={theme.warning}>Press Esc again to quit (workflow keeps running — use --resume to reconnect)</Text>
       </Box>
     );
   }
@@ -365,7 +386,12 @@ export function App({ initialUrl, resumeWorkflowId }: AppProps = {}): React.Reac
           version={VERSION}
           isConnected={isConnected}
           isClaudeConnected={isClaudeConnected}
+          client={client}
           onContinue={() => setScreen("url-input")}
+          onResume={(wfId) => {
+            setWorkflowId(wfId);
+            setScreen("analyzing");
+          }}
         />
       );
 

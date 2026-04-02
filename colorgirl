@@ -76,21 +76,24 @@ stop_token_refresher() {
 
 usage() {
   cat <<'EOF'
-Usage: ./colorgirl [OPTIONS]
+Usage: ./colorgirl [OPTIONS] [URL]
 
   Scrape supplier products and generate WooCommerce CSV imports.
 
 Options:
-  --verbose, -v    Show build output and worker logs
-  --stop           Tear down all containers
-  --rebuild        Force Docker rebuild (no cache)
-  --help, -h       Show this help
+  --verbose, -v          Show build output and worker logs
+  --stop                 Tear down all containers
+  --rebuild              Force Docker rebuild (no cache)
+  --resume <id>          Resume a previous workflow by ID
+  --help, -h             Show this help
 
 Examples:
-  ./colorgirl                  Start everything, launch interactive TUI
-  ./colorgirl -v               Same but see build + worker logs
-  ./colorgirl --stop           Tear down containers
-  ./colorgirl --rebuild        Rebuild Docker images from scratch
+  ./colorgirl                              Start everything, launch interactive TUI
+  ./colorgirl https://supplier.com         Skip URL input, start analyzing
+  ./colorgirl -v                           Same but see build + worker logs
+  ./colorgirl --stop                       Tear down containers
+  ./colorgirl --rebuild                    Rebuild Docker images from scratch
+  ./colorgirl --resume colorgirl-123456    Resume a previous session
 EOF
 }
 
@@ -101,16 +104,25 @@ EOF
 VERBOSE=false
 STOP=false
 REBUILD=false
+RESUME_ID=""
+TUI_ARGS=""
 
-for arg in "$@"; do
-  case "$arg" in
+while [ $# -gt 0 ]; do
+  case "$1" in
     --verbose|-v) VERBOSE=true ;;
     --stop)       STOP=true ;;
     --rebuild)    REBUILD=true ;;
+    --resume|-r)  shift; RESUME_ID="${1:-}"; if [ -z "$RESUME_ID" ]; then echo "Error: --resume requires a workflow ID"; exit 1; fi ;;
     --help|-h)    usage; exit 0 ;;
-    *)            echo "Unknown option: $arg"; usage; exit 1 ;;
+    https://*|http://*) TUI_ARGS="$1" ;;
+    *)            echo "Unknown option: $1"; usage; exit 1 ;;
   esac
+  shift
 done
+
+if [ -n "$RESUME_ID" ]; then
+  TUI_ARGS="--resume $RESUME_ID"
+fi
 
 # ---------------------------------------------------------------------------
 # Check prerequisites
@@ -503,4 +515,4 @@ docker run -it --rm \
   -e LINES="$TERM_ROWS" \
   -e COLORGIRL_VERBOSE="${COLORGIRL_VERBOSE:-0}" \
   docker-colorgirl-worker \
-  node dist/cli/app.js
+  node dist/cli/app.js $TUI_ARGS
