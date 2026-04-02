@@ -7,6 +7,7 @@ export interface CliArgs {
   version: boolean;
   noColor: boolean;
   url: string | null;
+  resume: string | null;
 }
 
 export function parseCliArgs(): CliArgs {
@@ -15,6 +16,7 @@ export function parseCliArgs(): CliArgs {
       help: { type: "boolean", short: "h", default: false },
       version: { type: "boolean", default: false },
       "no-color": { type: "boolean", default: false },
+      resume: { type: "string", short: "r" },
     },
     allowPositionals: true,
     strict: false,
@@ -25,6 +27,7 @@ export function parseCliArgs(): CliArgs {
     version: !!values.version,
     noColor: !!values["no-color"],
     url: positionals[0] ?? null,
+    resume: (values.resume as string) ?? null,
   };
 }
 
@@ -37,13 +40,15 @@ Usage:
   colorgirl [options] [url]
 
 Options:
-  -h, --help       Show this help
-  --version        Show version
-  --no-color       Disable colors
+  -h, --help           Show this help
+  --version            Show version
+  --no-color           Disable colors
+  -r, --resume <id>    Resume a previous workflow by ID
 
 Examples:
   colorgirl                           Interactive mode
   colorgirl https://supplier.com      Skip URL input, start analyzing
+  colorgirl --resume colorgirl-123    Resume a previous session
 `);
 }
 

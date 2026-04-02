@@ -77,9 +77,10 @@ const VERSION = "1.0.0";
 // ── App ─────────────────────────────────────────────────
 interface AppProps {
   initialUrl?: string;
+  resumeWorkflowId?: string;
 }
 
-export function App({ initialUrl }: AppProps = {}): React.ReactElement {
+export function App({ initialUrl, resumeWorkflowId }: AppProps = {}): React.ReactElement {
   const { exit } = useApp();
 
   // Core state
@@ -119,6 +120,7 @@ export function App({ initialUrl }: AppProps = {}): React.ReactElement {
 
   // Connect to Temporal on mount
   const clientRef = useRef<Client | null>(null);
+  const suggestedConfigRef = useRef<SiteConfig | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -194,12 +196,20 @@ export function App({ initialUrl }: AppProps = {}): React.ReactElement {
     [client],
   );
 
+  // Resume existing workflow if --resume flag provided
+  useEffect(() => {
+    if (resumeWorkflowId && client && !workflowId) {
+      setWorkflowId(resumeWorkflowId);
+      setScreen("analyzing");
+    }
+  }, [resumeWorkflowId, client, workflowId]);
+
   // Auto-start with URL if provided as CLI arg
   useEffect(() => {
-    if (initialUrl && client && !workflowId) {
+    if (initialUrl && client && !workflowId && !resumeWorkflowId) {
       startWorkflow(initialUrl);
     }
-  }, [initialUrl, client, workflowId, startWorkflow]);
+  }, [initialUrl, client, workflowId, resumeWorkflowId, startWorkflow]);
 
   // Poll workflow state
   useEffect(() => {
@@ -234,9 +244,14 @@ export function App({ initialUrl }: AppProps = {}): React.ReactElement {
             break;
 
           case "awaiting-config": {
-            const config =
-              await handle.query<SiteConfig | null>(getSuggestedConfigQuery);
-            if (config) setSuggestedConfig(config);
+            if (!suggestedConfigRef.current) {
+              const config =
+                await handle.query<SiteConfig | null>(getSuggestedConfigQuery);
+              if (config) {
+                suggestedConfigRef.current = config;
+                setSuggestedConfig(config);
+              }
+            }
             setScreen("config");
             break;
           }
@@ -342,9 +357,8 @@ export function App({ initialUrl }: AppProps = {}): React.ReactElement {
   // ── Screen router ─────────────────────────────────────
   switch (screen) {
     case "welcome":
-      if (initialUrl && client) {
-        // Skip welcome if URL provided via CLI
-        return <AnalysisScreen url={initialUrl} status="Starting..." />;
+      if ((initialUrl || resumeWorkflowId) && client) {
+        return <AnalysisScreen url={initialUrl ?? ""} status={resumeWorkflowId ? "Reconnecting..." : "Starting..."} />;
       }
       return (
         <WelcomeScreen
@@ -454,7 +468,10 @@ export function main(): void {
 
   render(
     <ErrorBoundary>
-      <App initialUrl={args.url ?? undefined} />
+      <App
+        initialUrl={args.url ?? undefined}
+        resumeWorkflowId={args.resume ?? undefined}
+      />
     </ErrorBoundary>,
   );
 }

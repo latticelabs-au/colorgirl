@@ -60,6 +60,16 @@ export function ConfigScreen({
       return;
     }
 
+    // Navigate within categories with arrows (Tab to leave)
+    if (focusedField === "categories" && (key.downArrow || key.upArrow)) {
+      if (key.downArrow) {
+        setCategoryIndex((i) => Math.min(i + 1, allCategories.length - 1));
+      } else {
+        setCategoryIndex((i) => Math.max(i - 1, 0));
+      }
+      return;
+    }
+
     // Navigate fields
     if (key.tab || key.downArrow) {
       const idx = fields.indexOf(focusedField);
@@ -118,6 +128,14 @@ export function ConfigScreen({
           return next;
         });
       }
+      return;
+    }
+
+    // Select all / deselect all in category list
+    if (focusedField === "categories" && input === "a") {
+      setSelectedCategories((prev) =>
+        prev.size === allCategories.length ? new Set() : new Set(allCategories),
+      );
       return;
     }
 
@@ -255,6 +273,7 @@ export function ConfigScreen({
         hints={[
           { key: "Tab", action: "Switch field" },
           { key: "Space", action: "Toggle" },
+          { key: "a", action: "Select/deselect all" },
           { key: "Enter", action: "Approve" },
           { key: "?", action: "Help" },
         ]}

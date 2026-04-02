@@ -4,9 +4,10 @@ import type { Client } from "@temporalio/client";
 import type { Screen } from "../app.js";
 
 /**
- * Handle Ctrl+C with a double-press confirmation during active workflows.
+ * Handle Escape with a double-press confirmation during active workflows.
  * On WelcomeScreen/ExportScreen/ErrorScreen, exits immediately.
- * During active work, first press shows a warning; second press exits.
+ * During active work, first press shows a warning; second press disconnects
+ * and prints a resume command (does NOT cancel the workflow).
  */
 export function useGracefulShutdown(
   client: Client | null,
@@ -17,31 +18,26 @@ export function useGracefulShutdown(
   const [pendingExit, setPendingExit] = useState(false);
 
   const doExit = useCallback(() => {
-    if (workflowId && client) {
-      try {
-        const handle = client.workflow.getHandle(workflowId);
-        handle.cancel().catch(() => {});
-      } catch {
-        // Best-effort cancel
-      }
+    if (workflowId) {
+      // Print resume command to stderr so it survives Ink's cleanup
+      process.stderr.write(
+        `\nWorkflow still running. Resume with:\n  colorgirl --resume ${workflowId}\n\n`,
+      );
     }
     exit();
-  }, [client, workflowId, exit]);
+  }, [workflowId, exit]);
 
   useInput((_input, key) => {
-    // Ctrl+C is not directly catchable via useInput in Ink,
-    // but Escape can serve as a soft-cancel mechanism
     if (key.escape) {
       const safeScreens: Screen[] = ["welcome", "export", "error"];
       if (safeScreens.includes(screen)) {
-        doExit();
+        exit();
         return;
       }
       if (pendingExit) {
         doExit();
       } else {
         setPendingExit(true);
-        // Reset after 3 seconds
         setTimeout(() => setPendingExit(false), 3000);
       }
     }
