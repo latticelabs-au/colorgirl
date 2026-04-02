@@ -5,6 +5,9 @@ RUN npx playwright install-deps chromium
 
 WORKDIR /app
 
+# Install Claude Code CLI globally (required by claude-agent-sdk)
+RUN npm install -g @anthropic-ai/claude-code
+
 # Copy package files and install
 COPY package.json package-lock.json ./
 RUN npm ci
