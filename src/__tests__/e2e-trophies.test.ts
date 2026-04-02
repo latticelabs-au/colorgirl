@@ -29,7 +29,8 @@ import type {
   AttributeDef,
 } from "../pipeline/models.js";
 import { BrowserManager } from "../scraper/playwright.js";
-import { extractProduct, withRetry } from "../scraper/engine.js";
+import { withRetry } from "../scraper/engine.js";
+import { extractProductsFromHtml } from "../scraper/extract-product.js";
 import { groupProducts } from "../pipeline/grouper.js";
 import { buildCsv, type CsvBuilderConfig } from "../export/csv-builder.js";
 
