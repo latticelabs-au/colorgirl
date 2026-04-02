@@ -245,6 +245,7 @@ export function ConfigScreen({
           { key: "Tab", action: "Switch field" },
           { key: "Space", action: "Toggle" },
           { key: "Enter", action: "Approve" },
+          { key: "?", action: "Help" },
         ]}
       />
     </Box>

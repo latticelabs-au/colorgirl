@@ -95,6 +95,7 @@ export function ProductReviewScreen({
           { key: "Space", action: "Toggle" },
           { key: "a", action: "Select All" },
           { key: "Enter", action: "Approve" },
+          { key: "?", action: "Help" },
         ]}
       />
     </Box>

@@ -36,7 +36,7 @@ export function ExportScreen({
         </Box>
       </Panel>
 
-      <KeyHint hints={[{ key: "q", action: "Exit" }]} />
+      <KeyHint hints={[{ key: "q", action: "Exit" }, { key: "?", action: "Help" }]} />
     </Box>
   );
 }

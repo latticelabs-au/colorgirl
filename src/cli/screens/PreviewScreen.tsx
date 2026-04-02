@@ -88,6 +88,7 @@ export function PreviewScreen({
           { key: "\u2191/\u2193", action: "Scroll" },
           { key: "Enter", action: "Export" },
           { key: "q", action: "Cancel" },
+          { key: "?", action: "Help" },
         ]}
       />
     </Box>

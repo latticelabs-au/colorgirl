@@ -62,7 +62,7 @@ export function WelcomeScreen({
       <Box marginTop={1}>
         <Text color={theme.text}>Press Enter to begin</Text>
       </Box>
-      <KeyHint hints={[{ key: "Enter", action: "Begin" }, { key: "q", action: "Quit" }]} />
+      <KeyHint hints={[{ key: "Enter", action: "Begin" }, { key: "q", action: "Quit" }, { key: "?", action: "Help" }]} />
     </Box>
   );
 }

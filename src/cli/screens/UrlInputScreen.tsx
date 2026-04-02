@@ -53,6 +53,7 @@ export function UrlInputScreen({
         hints={[
           { key: "Enter", action: "Submit" },
           { key: "Esc", action: "Back" },
+          { key: "?", action: "Help" },
         ]}
       />
     </Box>
