@@ -23,10 +23,10 @@ export function ConfigScreen({
   const [focusedField, setFocusedField] = useState<Field>("name");
   const [editingField, setEditingField] = useState<Field | null>(null);
 
-  // Derive categories from discovery config
+  // Derive categories from discovery config (deduplicated — sections can overlap)
   const allCategories =
     config.discovery.type === "category-list"
-      ? config.discovery.sections.flatMap((s) => s.categories)
+      ? [...new Set(config.discovery.sections.flatMap((s) => s.categories))]
       : [];
   const [selectedCategories, setSelectedCategories] = useState<Set<string>>(
     new Set(allCategories),

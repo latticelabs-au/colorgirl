@@ -31,7 +31,7 @@ import type { ScrapeError } from "../scraper/engine.js";
 import type { AppError } from "./types.js";
 import { toAppError } from "./errors.js";
 import { theme } from "./theme.js";
-import { useClearOnResize, useGracefulShutdown } from "./hooks/index.js";
+import { useGracefulShutdown } from "./hooks/index.js";
 
 import {
   WelcomeScreen,
@@ -90,9 +90,6 @@ export function App({ initialUrl, resumeWorkflowId }: AppProps = {}): React.Reac
   const [url, setUrl] = useState("");
   const [appError, setAppError] = useState<AppError | null>(null);
   const [showHelp, setShowHelp] = useState(false);
-
-  // Clear terminal on resize to avoid ghost output
-  useClearOnResize();
 
   // Graceful shutdown (Esc key with double-press confirmation)
   const { pendingExit } = useGracefulShutdown(client, workflowId, screen);
@@ -490,7 +487,12 @@ export function main(): void {
     process.env.FORCE_COLOR = "0";
   }
 
-  render(
+  // Enter alternate screen buffer — prevents ghost output on resize/redraw
+  const leaveAltBuffer = () => process.stdout.write("\x1b[?1049l");
+  process.stdout.write("\x1b[?1049h\x1b[H");
+  process.on("exit", leaveAltBuffer);
+
+  const instance = render(
     <ErrorBoundary>
       <App
         initialUrl={args.url ?? undefined}
@@ -498,6 +500,8 @@ export function main(): void {
       />
     </ErrorBoundary>,
   );
+
+  instance.waitUntilExit().then(leaveAltBuffer);
 }
 
 // Direct execution
