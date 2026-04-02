@@ -3,6 +3,72 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 COMPOSE_FILE="$SCRIPT_DIR/docker/docker-compose.yml"
+TOKEN_REFRESHER_PID=""
+
+# ---------------------------------------------------------------------------
+# OAuth token refresh (like logan's pattern)
+# ---------------------------------------------------------------------------
+
+# Find the credentials file once
+find_cred_file() {
+  for candidate in "$HOME/.claude/.credentials.json" "${USERPROFILE:-}/.claude/.credentials.json"; do
+    if [ -f "$candidate" ]; then
+      echo "$candidate"
+      return
+    fi
+  done
+}
+
+# Read token from credentials file
+read_token_from_file() {
+  local cred_file="$1"
+  node -e "var fs=require('fs');try{var d=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));console.log(d.claudeAiOauth.accessToken)}catch(e){process.exit(1)}" "$cred_file" 2>/dev/null || true
+}
+
+# Refresh OAuth token by running claude --print "ping" (forces token refresh in credentials file)
+refresh_oauth_token() {
+  local cred_file
+  cred_file="$(find_cred_file)"
+  if [ -z "$cred_file" ] || [ -z "${CLAUDE_CODE_OAUTH_TOKEN:-}" ]; then
+    return  # Using API key or no cred file — nothing to refresh
+  fi
+
+  # Run claude --print to trigger token refresh in the credentials file
+  docker run --rm \
+    -e CLAUDE_CODE_OAUTH_TOKEN="${CLAUDE_CODE_OAUTH_TOKEN}" \
+    docker-colorgirl-worker \
+    claude --print "ping" > /dev/null 2>&1 || true
+
+  # Re-read the refreshed token
+  local new_token
+  new_token="$(read_token_from_file "$cred_file")"
+  if [ -n "$new_token" ]; then
+    export CLAUDE_CODE_OAUTH_TOKEN="$new_token"
+    # Update running worker container's env by recreating it
+    docker compose -f "$COMPOSE_FILE" up -d colorgirl-worker > /dev/null 2>&1 || true
+  fi
+}
+
+# Background token refresher — runs every 45 minutes
+start_token_refresher() {
+  if [ -z "${CLAUDE_CODE_OAUTH_TOKEN:-}" ]; then
+    return  # Using API key — no refresh needed
+  fi
+  (
+    while true; do
+      sleep 2700  # 45 minutes
+      refresh_oauth_token
+    done
+  ) &
+  TOKEN_REFRESHER_PID=$!
+}
+
+stop_token_refresher() {
+  if [ -n "$TOKEN_REFRESHER_PID" ]; then
+    kill "$TOKEN_REFRESHER_PID" 2>/dev/null || true
+    wait "$TOKEN_REFRESHER_PID" 2>/dev/null || true
+  fi
+}
 
 # ---------------------------------------------------------------------------
 # Usage
@@ -185,17 +251,10 @@ fi
 
 if [ -z "${CLAUDE_CODE_OAUTH_TOKEN:-}" ] && [ -z "${ANTHROPIC_API_KEY:-}" ]; then
   # Try auto-import from Claude Code
-  CRED_FILE=""
-  for candidate in "$HOME/.claude/.credentials.json" "${USERPROFILE:-}/.claude/.credentials.json"; do
-    if [ -f "$candidate" ]; then
-      CRED_FILE="$candidate"
-      break
-    fi
-  done
-
+  CRED_FILE="$(find_cred_file)"
   AUTO_TOKEN=""
   if [ -n "$CRED_FILE" ]; then
-    AUTO_TOKEN=$(node -e "var fs=require('fs');try{var d=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));console.log(d.claudeAiOauth.accessToken)}catch(e){process.exit(1)}" "$CRED_FILE" 2>/dev/null || true)
+    AUTO_TOKEN="$(read_token_from_file "$CRED_FILE")"
   fi
 
   if [ -n "${AUTO_TOKEN:-}" ]; then
@@ -282,32 +341,52 @@ else
 fi
 
 echo -n "Validating credentials..."
+
+# First attempt
 PING_RESULT=$(docker run --rm \
   -e CLAUDE_CODE_OAUTH_TOKEN="${CLAUDE_CODE_OAUTH_TOKEN:-}" \
   -e ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY:-}" \
   docker-colorgirl-worker \
   claude --print "respond with exactly: ok" 2>&1) || true
 
+if echo "$PING_RESULT" | grep -qi "expired"; then
+  # Token expired — try refreshing via claude CLI (like logan does)
+  echo " token expired, refreshing..."
+  CRED_FILE="$(find_cred_file)"
+  if [ -n "$CRED_FILE" ]; then
+    # Run claude --print to trigger refresh in credentials file
+    docker run --rm \
+      -e CLAUDE_CODE_OAUTH_TOKEN="${CLAUDE_CODE_OAUTH_TOKEN:-}" \
+      docker-colorgirl-worker \
+      claude --print "ping" > /dev/null 2>&1 || true
+
+    # Re-read refreshed token
+    NEW_TOKEN="$(read_token_from_file "$CRED_FILE")"
+    if [ -n "$NEW_TOKEN" ] && [ "$NEW_TOKEN" != "${CLAUDE_CODE_OAUTH_TOKEN:-}" ]; then
+      export CLAUDE_CODE_OAUTH_TOKEN="$NEW_TOKEN"
+      echo -n "  Retrying with refreshed token..."
+
+      PING_RESULT=$(docker run --rm \
+        -e CLAUDE_CODE_OAUTH_TOKEN="$NEW_TOKEN" \
+        docker-colorgirl-worker \
+        claude --print "respond with exactly: ok" 2>&1) || true
+    fi
+  fi
+fi
+
 if echo "$PING_RESULT" | grep -qi "ok"; then
   echo " valid."
-elif echo "$PING_RESULT" | grep -qi "expired"; then
-  echo ""
-  echo "ERROR: OAuth token has expired."
-  echo ""
-  echo "Fix: run 'claude' to re-authenticate, then re-run ./colorgirl"
-  echo "  Or pass an API key: ANTHROPIC_API_KEY=sk-ant-... ./colorgirl"
-  exit 1
-elif echo "$PING_RESULT" | grep -qi "authentication_error\|401\|unauthorized"; then
+elif echo "$PING_RESULT" | grep -qi "expired\|authentication_error\|401\|unauthorized"; then
   echo ""
   echo "ERROR: Authentication failed."
   echo ""
-  echo "Check your API key or OAuth token and try again."
+  echo "Fix: run 'claude' to re-authenticate, then re-run ./colorgirl"
+  echo "  Or pass an API key: ANTHROPIC_API_KEY=sk-ant-... ./colorgirl"
   if $VERBOSE; then
     echo "Detail: $PING_RESULT"
   fi
   exit 1
 else
-  # Unknown response — might be fine, proceed with warning
   echo " unknown response (proceeding anyway)."
   if $VERBOSE; then
     echo "Ping response: $PING_RESULT"
@@ -388,10 +467,14 @@ fi
 
 echo "Worker connected."
 
+# Start background token refresher (every 45 min, like logan)
+start_token_refresher
+
 # Cleanup on exit (any exit — success, error, or Ctrl+C)
 cleanup() {
   local exit_code=$?
   echo ""
+  stop_token_refresher
   echo "Stopping containers..."
   docker compose -f "$COMPOSE_FILE" down 2>/dev/null || true
   echo "Cleaned up."
