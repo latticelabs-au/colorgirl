@@ -15,18 +15,14 @@ Usage: ./colorgirl [OPTIONS]
   Scrape supplier products and generate WooCommerce CSV imports.
 
 Options:
-  --verbose, -v    Show worker logs (Opus agent activity)
+  --verbose, -v    Show build output and worker logs
   --stop           Tear down all containers
   --rebuild        Force Docker rebuild (no cache)
   --help, -h       Show this help
 
-Credentials:
-  Auto-reads OAuth token from ~/.claude/.credentials.json (Claude Code login).
-  Or set ANTHROPIC_API_KEY / CLAUDE_CODE_OAUTH_TOKEN in environment.
-
 Examples:
   ./colorgirl                  Start everything, launch interactive TUI
-  ./colorgirl -v               Same but see Opus/worker logs
+  ./colorgirl -v               Same but see build + worker logs
   ./colorgirl --stop           Tear down containers
   ./colorgirl --rebuild        Rebuild Docker images from scratch
 EOF
@@ -62,7 +58,6 @@ check_docker() {
   echo "Docker is not installed or not running."
   echo ""
 
-  # Detect platform and offer install
   case "$(uname -s)" in
     Darwin)
       echo "Install Docker Desktop for Mac:"
@@ -185,11 +180,11 @@ if $STOP; then
 fi
 
 # ---------------------------------------------------------------------------
-# 1. Resolve credentials
+# 1. Resolve credentials (interactive)
 # ---------------------------------------------------------------------------
 
 if [ -z "${CLAUDE_CODE_OAUTH_TOKEN:-}" ] && [ -z "${ANTHROPIC_API_KEY:-}" ]; then
-  # Find credentials file
+  # Try auto-import from Claude Code
   CRED_FILE=""
   for candidate in "$HOME/.claude/.credentials.json" "$USERPROFILE/.claude/.credentials.json"; do
     if [ -f "$candidate" ]; then
@@ -198,22 +193,71 @@ if [ -z "${CLAUDE_CODE_OAUTH_TOKEN:-}" ] && [ -z "${ANTHROPIC_API_KEY:-}" ]; the
     fi
   done
 
+  AUTO_TOKEN=""
   if [ -n "$CRED_FILE" ]; then
-    TOKEN=$(node -e "var fs=require('fs');try{var d=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));console.log(d.claudeAiOauth.accessToken)}catch(e){process.exit(1)}" "$CRED_FILE" 2>/dev/null || true)
-    if [ -n "${TOKEN:-}" ]; then
-      export CLAUDE_CODE_OAUTH_TOKEN="$TOKEN"
-      echo "Loaded OAuth token from ~/.claude/.credentials.json"
-    fi
+    AUTO_TOKEN=$(node -e "var fs=require('fs');try{var d=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));console.log(d.claudeAiOauth.accessToken)}catch(e){process.exit(1)}" "$CRED_FILE" 2>/dev/null || true)
   fi
 
-  if [ -z "${CLAUDE_CODE_OAUTH_TOKEN:-}" ] && [ -z "${ANTHROPIC_API_KEY:-}" ]; then
-    echo "ERROR: No credentials found."
+  if [ -n "${AUTO_TOKEN:-}" ]; then
+    echo "Found Claude Code credentials."
     echo ""
-    echo "Either:"
-    echo "  1. Log in via Claude Code (creates ~/.claude/.credentials.json)"
-    echo "  2. Set ANTHROPIC_API_KEY in your environment"
-    echo "  3. Set CLAUDE_CODE_OAUTH_TOKEN in your environment"
-    exit 1
+    echo "  [1] Use Claude Code login (auto-detected)"
+    echo "  [2] Paste an Anthropic API key instead"
+    echo ""
+    read -rp "Choice [1]: " cred_choice
+    case "${cred_choice:-1}" in
+      1|"")
+        export CLAUDE_CODE_OAUTH_TOKEN="$AUTO_TOKEN"
+        echo "Using Claude Code OAuth token."
+        ;;
+      2)
+        read -rp "Anthropic API key: " api_key
+        if [ -z "$api_key" ]; then
+          echo "ERROR: No API key provided."
+          exit 1
+        fi
+        export ANTHROPIC_API_KEY="$api_key"
+        echo "Using API key."
+        ;;
+      *)
+        echo "Invalid choice."
+        exit 1
+        ;;
+    esac
+  else
+    # No auto-import available
+    echo "No Claude Code credentials found."
+    echo ""
+    echo "  [1] Paste an Anthropic API key"
+    echo "  [2] Paste a Claude Code OAuth token"
+    echo ""
+    echo "  (To auto-detect: install Claude Code and run 'claude' to log in)"
+    echo ""
+    read -rp "Choice [1]: " cred_choice
+    case "${cred_choice:-1}" in
+      1|"")
+        read -rp "Anthropic API key: " api_key
+        if [ -z "$api_key" ]; then
+          echo "ERROR: No API key provided."
+          exit 1
+        fi
+        export ANTHROPIC_API_KEY="$api_key"
+        echo "Using API key."
+        ;;
+      2)
+        read -rp "OAuth token: " oauth_token
+        if [ -z "$oauth_token" ]; then
+          echo "ERROR: No token provided."
+          exit 1
+        fi
+        export CLAUDE_CODE_OAUTH_TOKEN="$oauth_token"
+        echo "Using OAuth token."
+        ;;
+      *)
+        echo "Invalid choice."
+        exit 1
+        ;;
+    esac
   fi
 fi
 
@@ -227,14 +271,19 @@ fi
 # 2. Build & start Docker containers
 # ---------------------------------------------------------------------------
 
-echo "Starting colorgirl infrastructure..."
+echo ""
+echo "Starting infrastructure..."
 
 BUILD_ARGS=""
 if $REBUILD; then
   BUILD_ARGS="--no-cache"
 fi
 
-docker compose -f "$COMPOSE_FILE" up -d --build $BUILD_ARGS 2>&1 | grep -v "^$"
+if $VERBOSE; then
+  docker compose -f "$COMPOSE_FILE" up -d --build $BUILD_ARGS 2>&1 | grep -v "^$"
+else
+  docker compose -f "$COMPOSE_FILE" up -d --build $BUILD_ARGS > /dev/null 2>&1
+fi
 
 # ---------------------------------------------------------------------------
 # 3. Wait for Temporal to be ready
@@ -243,7 +292,6 @@ docker compose -f "$COMPOSE_FILE" up -d --build $BUILD_ARGS 2>&1 | grep -v "^$"
 echo -n "Waiting for Temporal"
 TEMPORAL_READY=false
 for i in $(seq 1 60); do
-  # Check via Temporal UI API (more reliable than CLI inside container)
   if curl -sf http://localhost:8080/api/v1/namespaces/default &>/dev/null; then
     TEMPORAL_READY=true
     break
@@ -261,10 +309,9 @@ fi
 
 echo "Temporal ready."
 
-# Wait a bit for worker to connect
+# Wait for worker to connect
 sleep 3
 
-# Check worker is running
 if ! docker compose -f "$COMPOSE_FILE" ps --status running | grep -q colorgirl-worker; then
   echo "WARNING: Worker container not running. Checking logs..."
   docker compose -f "$COMPOSE_FILE" logs --tail 20 colorgirl-worker
@@ -272,10 +319,6 @@ if ! docker compose -f "$COMPOSE_FILE" ps --status running | grep -q colorgirl-w
 fi
 
 echo "Worker connected."
-
-# ---------------------------------------------------------------------------
-# 4. Verbose mode: tail worker logs in background
-# ---------------------------------------------------------------------------
 
 # Cleanup on exit (any exit — success, error, or Ctrl+C)
 cleanup() {
@@ -289,14 +332,17 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 # ---------------------------------------------------------------------------
-# 5. Build TUI locally and run
+# 4. Build TUI locally and run
 # ---------------------------------------------------------------------------
 
-echo "Building TUI..."
-npm run build --prefix "$SCRIPT_DIR" 2>/dev/null
+if $VERBOSE; then
+  npm run build --prefix "$SCRIPT_DIR"
+else
+  npm run build --prefix "$SCRIPT_DIR" > /dev/null 2>&1
+fi
 
 echo ""
-echo "Launching ColorGirl..."
-echo ""
-
+# Force truecolor support for Ink/chalk (Git Bash may not advertise it)
+export COLORTERM=truecolor
+export FORCE_COLOR=3
 node "$SCRIPT_DIR/dist/cli/app.js"
