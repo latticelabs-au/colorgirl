@@ -5,7 +5,7 @@ import { TASK_QUEUE } from "./client.js";
 
 export async function runWorker(address?: string): Promise<void> {
   const connection = await NativeConnection.connect({
-    address: address ?? "localhost:7233",
+    address: address ?? process.env.TEMPORAL_ADDRESS ?? "localhost:7233",
   });
 
   const worker = await Worker.create({

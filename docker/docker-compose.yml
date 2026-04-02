@@ -47,7 +47,9 @@ services:
       context: ..
       dockerfile: docker/Dockerfile.worker
     depends_on:
-      - temporal
+      temporal:
+        condition: service_started
+    restart: on-failure
     environment:
       - TEMPORAL_ADDRESS=temporal:7233
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}

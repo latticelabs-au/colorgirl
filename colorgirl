@@ -240,7 +240,8 @@ docker compose -f "$COMPOSE_FILE" up -d --build $BUILD_ARGS 2>&1 | grep -v "^$"
 echo -n "Waiting for Temporal"
 TEMPORAL_READY=false
 for i in $(seq 1 60); do
-  if docker compose -f "$COMPOSE_FILE" exec -T temporal temporal operator cluster health 2>/dev/null | grep -q SERVING; then
+  # Check via Temporal UI API (more reliable than CLI inside container)
+  if curl -sf http://localhost:8080/api/v1/namespaces/default &>/dev/null; then
     TEMPORAL_READY=true
     break
   fi
@@ -279,13 +280,19 @@ if $VERBOSE; then
   TAIL_PID=$!
 fi
 
-# Cleanup on exit
+# Cleanup on exit (any exit — success, error, or Ctrl+C)
 cleanup() {
+  local exit_code=$?
+  echo ""
   if [ -n "$TAIL_PID" ]; then
     kill "$TAIL_PID" 2>/dev/null || true
   fi
+  echo "Stopping containers..."
+  docker compose -f "$COMPOSE_FILE" down 2>/dev/null || true
+  echo "Cleaned up."
+  exit $exit_code
 }
-trap cleanup EXIT
+trap cleanup EXIT INT TERM
 
 # ---------------------------------------------------------------------------
 # 5. Build TUI locally and run
