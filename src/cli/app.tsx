@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { render, useApp, useInput, Box, Text } from "ink";
 import { execFile } from "node:child_process";
+import { writeFileSync, mkdirSync } from "node:fs";
 import { Client } from "@temporalio/client";
 import { createTemporalClient, TASK_QUEUE } from "../temporal/client.js";
 import {
@@ -90,6 +91,16 @@ export function App({ initialUrl, resumeWorkflowId }: AppProps = {}): React.Reac
   const [url, setUrl] = useState("");
   const [appError, setAppError] = useState<AppError | null>(null);
   const [showHelp, setShowHelp] = useState(false);
+
+  // Write workflow logs to disk
+  const writeLogs = useCallback((wfId: string, logLines: string[], extra?: string) => {
+    try {
+      mkdirSync("./output", { recursive: true });
+      const content = logLines.join("\n") + (extra ? `\n\n${extra}` : "") + "\n";
+      const path = `./output/${wfId}.log`;
+      writeFileSync(path, content);
+    } catch { /* best effort */ }
+  }, []);
 
   // Graceful shutdown (Esc key with double-press confirmation)
   const { pendingExit } = useGracefulShutdown(client, workflowId, screen);
@@ -303,18 +314,24 @@ export function App({ initialUrl, resumeWorkflowId }: AppProps = {}): React.Reac
               // Stay on preview while exporting
               break;
 
-            case "complete":
+            case "complete": {
               setExportFilePath(status.message?.match(/to (.+)$/)?.[1] ?? "");
               setExportRowCount(
                 Number(status.message?.match(/(\d+) rows/)?.[1] ?? 0),
               );
+              const completeLogs = await handle.query<string[]>(getLogsQuery);
+              writeLogs(workflowId, completeLogs);
               setScreen("export");
               break;
+            }
 
-            case "error":
+            case "error": {
+              const errorLogs = await handle.query<string[]>(getLogsQuery);
+              writeLogs(workflowId, errorLogs, `ERROR: ${status.message}`);
               setAppError(toAppError(status.message ?? "Unknown error", "workflow-error"));
               setScreen("error");
               break;
+            }
           }
         }
       } catch (err) {

@@ -92,8 +92,8 @@ export function toAppError(error: unknown, context: string): AppError {
       message: raw || "Workflow failed",
       detail: raw,
       suggestion:
-        "Check worker logs for details:\n" +
-        "  docker compose -f docker/docker-compose.yml logs --tail 30 colorgirl-worker",
+        "Logs saved to output/<workflow-id>.log\n" +
+        "Docker logs: docker compose -f docker/docker-compose.yml logs --tail 30 colorgirl-worker",
     };
   }
 

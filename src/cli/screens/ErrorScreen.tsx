@@ -37,7 +37,7 @@ export function ErrorScreen({
         <Box marginTop={1}>
           <Text color={theme.text}>{error.message}</Text>
         </Box>
-        {VERBOSE && error.detail && error.detail !== error.message && (
+        {error.detail && error.detail !== error.message && (
           <Box marginTop={1} flexDirection="column">
             <Text color={theme.textDim}>Detail:</Text>
             <Text color={theme.textDim}>{error.detail}</Text>
