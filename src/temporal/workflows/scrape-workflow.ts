@@ -79,6 +79,8 @@ export interface ScrapeWorkflowInput {
   url: string;
   businessConfig: BusinessConfig;
   outputPath?: string;
+  /** Pre-built config from a previous run — skips Opus analysis when provided. */
+  cachedConfig?: SiteConfig;
 }
 
 // ── Helpers ──────────────────────────────────────────────
@@ -187,18 +189,24 @@ export async function scrapeWorkflow(
   });
 
   try {
-    // 1. Analyse site
-    status = { phase: "analyzing", message: `Analysing ${input.url}...` };
-    pushLog(`Starting site analysis: ${input.url}`);
-    pushLog(`Using Opus agent for deep site reconnaissance...`);
-    let siteConfig: Awaited<ReturnType<typeof analyzeSiteActivity>>;
-    try {
-      siteConfig = await analyzeSiteActivity(input.url);
-    } catch (err) {
-      pushLog(`Site analysis failed: ${String(err)}`);
-      throw err;
+    // 1. Analyse site (or use cached config from a previous run)
+    let siteConfig: SiteConfig;
+    if (input.cachedConfig) {
+      siteConfig = input.cachedConfig;
+      suggestedConfig = siteConfig;
+      pushLog(`Using cached config — skipping Opus analysis`);
+    } else {
+      status = { phase: "analyzing", message: `Analysing ${input.url}...` };
+      pushLog(`Starting site analysis: ${input.url}`);
+      pushLog(`Using Opus agent for deep site reconnaissance...`);
+      try {
+        siteConfig = await analyzeSiteActivity(input.url);
+      } catch (err) {
+        pushLog(`Site analysis failed: ${String(err)}`);
+        throw err;
+      }
+      suggestedConfig = siteConfig;
     }
-    suggestedConfig = siteConfig;
     pushLog(`Analysis complete — pipeline: ${siteConfig.pipeline}, extraction: ${siteConfig.variantExtraction.method}`);
     pushLog(`Found ${siteConfig.attributes.length} attributes, rate limit: ${siteConfig.rateLimit}ms`);
 

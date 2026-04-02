@@ -180,7 +180,7 @@ export function App({ initialUrl, resumeWorkflowId }: AppProps = {}): React.Reac
 
   // Start workflow
   const startWorkflow = useCallback(
-    async (supplierUrl: string) => {
+    async (supplierUrl: string, cachedConfig?: SiteConfig) => {
       if (!client) return;
       setUrl(supplierUrl);
       setScreen("analyzing");
@@ -189,6 +189,7 @@ export function App({ initialUrl, resumeWorkflowId }: AppProps = {}): React.Reac
       const input: ScrapeWorkflowInput = {
         url: supplierUrl,
         businessConfig: DEFAULT_BUSINESS_CONFIG,
+        cachedConfig,
       };
 
       try {
@@ -477,7 +478,14 @@ export function App({ initialUrl, resumeWorkflowId }: AppProps = {}): React.Reac
           onRestart={() => {
             setAppError(null);
             setWorkflowId(null);
-            setScreen("welcome");
+            suggestedConfigRef.current = null;
+            lastPhaseRef.current = "";
+            // If we already have a config, restart from config (skip Opus analysis)
+            if (suggestedConfig && url) {
+              startWorkflow(url, suggestedConfig);
+            } else {
+              setScreen("url-input");
+            }
           }}
           onQuit={() => exit()}
         />
