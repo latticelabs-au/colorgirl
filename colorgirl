@@ -490,6 +490,8 @@ echo ""
 # Run TUI inside a container from the worker image (no local Node/npm required).
 # Uses the same Docker network so it can reach the Temporal server.
 COMPOSE_PROJECT="$(basename "$(dirname "$COMPOSE_FILE")")"
+TERM_COLS=$(tput cols 2>/dev/null || echo 120)
+TERM_ROWS=$(tput lines 2>/dev/null || echo 40)
 docker run -it --rm \
   --network "${COMPOSE_PROJECT}_default" \
   -e TEMPORAL_ADDRESS=temporal:7233 \
@@ -497,6 +499,8 @@ docker run -it --rm \
   -e ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY:-}" \
   -e COLORTERM=truecolor \
   -e FORCE_COLOR=3 \
+  -e COLUMNS="$TERM_COLS" \
+  -e LINES="$TERM_ROWS" \
   -e COLORGIRL_VERBOSE="${COLORGIRL_VERBOSE:-0}" \
   docker-colorgirl-worker \
   node dist/cli/app.js

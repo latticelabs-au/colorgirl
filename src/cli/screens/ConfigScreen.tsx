@@ -215,19 +215,30 @@ export function ConfigScreen({
         </Box>
       </Panel>
 
-      {/* Category list */}
-      {allCategories.length > 0 && (
-        <Panel title={`Categories (${selectedCategories.size}/${allCategories.length})`}>
-          {allCategories.map((cat, idx) => (
-            <Checkbox
-              key={cat}
-              label={cat}
-              checked={selectedCategories.has(cat)}
-              focused={focusedField === "categories" && idx === categoryIndex}
-            />
-          ))}
-        </Panel>
-      )}
+      {/* Category list — scrolling window */}
+      {allCategories.length > 0 && (() => {
+        const MAX_VISIBLE = 15;
+        const total = allCategories.length;
+        const half = Math.floor(MAX_VISIBLE / 2);
+        let start = Math.max(0, categoryIndex - half);
+        let end = start + MAX_VISIBLE;
+        if (end > total) { end = total; start = Math.max(0, end - MAX_VISIBLE); }
+        const visible = allCategories.slice(start, end);
+        return (
+          <Panel title={`Categories (${selectedCategories.size}/${total} selected, ${categoryIndex + 1}/${total})`}>
+            {start > 0 && <Text color={theme.textDim}>  ↑ {start} more</Text>}
+            {visible.map((cat, i) => (
+              <Checkbox
+                key={cat}
+                label={cat}
+                checked={selectedCategories.has(cat)}
+                focused={focusedField === "categories" && (start + i) === categoryIndex}
+              />
+            ))}
+            {end < total && <Text color={theme.textDim}>  ↓ {total - end} more</Text>}
+          </Panel>
+        );
+      })()}
 
       {/* Approve button */}
       <Box marginTop={1}>
