@@ -9,11 +9,6 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 
-# Install Claude Code CLI globally (required by claude-agent-sdk at runtime).
-# Pin to 2.1.87 — CLI 2.1.90 requires --verbose with --output-format stream-json
-# which SDK 0.2.90 doesn't pass, causing exit code 1.
-RUN npm install -g @anthropic-ai/claude-code@2.1.87
-
 # Install Playwright browsers (for tier 3 only)
 RUN npx playwright install chromium
 
@@ -24,7 +19,10 @@ COPY tsconfig.json tsup.config.ts ./
 # Build
 RUN npm run build
 
-# Create output directory
-RUN mkdir -p /app/output
+# Create output directory and set permissions for non-root user
+RUN mkdir -p /app/output && chown -R node:node /app
+
+# Run as non-root — SDK's --dangerously-skip-permissions flag is rejected as root
+USER node
 
 CMD ["node", "dist/temporal/worker.js"]
