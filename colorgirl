@@ -51,7 +51,7 @@ done
 # ---------------------------------------------------------------------------
 
 check_docker() {
-  if command -v docker &>/dev/null && docker info &>/dev/null 2>&1; then
+  if command -v docker &>/dev/null && docker info >/dev/null 2>&1; then
     return 0
   fi
 
@@ -186,7 +186,7 @@ fi
 if [ -z "${CLAUDE_CODE_OAUTH_TOKEN:-}" ] && [ -z "${ANTHROPIC_API_KEY:-}" ]; then
   # Try auto-import from Claude Code
   CRED_FILE=""
-  for candidate in "$HOME/.claude/.credentials.json" "$USERPROFILE/.claude/.credentials.json"; do
+  for candidate in "$HOME/.claude/.credentials.json" "${USERPROFILE:-}/.claude/.credentials.json"; do
     if [ -f "$candidate" ]; then
       CRED_FILE="$candidate"
       break
