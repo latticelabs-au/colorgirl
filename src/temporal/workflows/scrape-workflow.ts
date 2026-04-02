@@ -26,6 +26,11 @@ const {
   buildCsvActivity,
 } = proxyActivities<typeof activities>({
   startToCloseTimeout: "30 minutes",
+  retry: {
+    maximumAttempts: 3,
+    initialInterval: "5 seconds",
+    backoffCoefficient: 2,
+  },
 });
 
 // ── Signals (TUI -> Workflow) ────────────────────────────
@@ -186,7 +191,13 @@ export async function scrapeWorkflow(
     status = { phase: "analyzing", message: `Analysing ${input.url}...` };
     pushLog(`Starting site analysis: ${input.url}`);
     pushLog(`Using Opus agent for deep site reconnaissance...`);
-    const siteConfig = await analyzeSiteActivity(input.url);
+    let siteConfig: Awaited<ReturnType<typeof analyzeSiteActivity>>;
+    try {
+      siteConfig = await analyzeSiteActivity(input.url);
+    } catch (err) {
+      pushLog(`Site analysis failed: ${String(err)}`);
+      throw err;
+    }
     suggestedConfig = siteConfig;
     pushLog(`Analysis complete — pipeline: ${siteConfig.pipeline}, extraction: ${siteConfig.variantExtraction.method}`);
     pushLog(`Found ${siteConfig.attributes.length} attributes, rate limit: ${siteConfig.rateLimit}ms`);
