@@ -159,7 +159,7 @@ describe("WelcomeScreen", () => {
     const { lastFrame } = render(
       <WelcomeScreen version="0.1.0" isConnected={true} isClaudeConnected={false} onContinue={() => {}} />,
     );
-    expect(lastFrame()).toContain("re-authenticate");
+    expect(lastFrame()).toContain("re-auth");
   });
 });
 
