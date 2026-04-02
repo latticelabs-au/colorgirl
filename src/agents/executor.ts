@@ -85,21 +85,31 @@ export async function executeAgent(
         if (type === "result" || type === "assistant") {
           const contentLen = Array.isArray(msg.content) ? msg.content.length : 0;
           log(`  content blocks: ${contentLen}`);
-          if (Array.isArray(msg.content)) {
-            for (const b of msg.content) {
-              if (b && typeof b === "object") {
-                const bType = (b as any).type ?? "?";
-                const bText = (b as any).text;
-                log(`  block: type=${bType}${bText ? ` text=${(bText as string).slice(0, 80)}...` : ""}`);
+          // Log message field structure
+          if (msg.message && typeof msg.message === "object") {
+            const m = msg.message as Record<string, unknown>;
+            log(`  message keys: [${Object.keys(m).join(",")}]`);
+            if (Array.isArray(m.content)) {
+              for (const b of m.content) {
+                if (b && typeof b === "object") {
+                  const bType = (b as any).type ?? "?";
+                  const bText = (b as any).text;
+                  log(`  msg.content block: type=${bType}${bText ? ` text=${(bText as string).slice(0, 100)}...` : ""}`);
+                }
               }
             }
           }
         }
       }
 
-      // Handle result-type messages with content blocks
-      if (Array.isArray(msg.content)) {
-        for (const block of msg.content) {
+      // Extract text from content blocks (direct or nested in message)
+      const contentSources = [
+        msg.content,
+        (msg.message as any)?.content,
+      ];
+      for (const content of contentSources) {
+        if (!Array.isArray(content)) continue;
+        for (const block of content) {
           if (
             block &&
             typeof block === "object" &&
@@ -114,7 +124,7 @@ export async function executeAgent(
         }
       }
 
-      // Handle result event — SDK returns final text here
+      // Handle result event — SDK may return final text here
       if (typeof msg.result === "string" && msg.result.length > 0) {
         textParts.push(msg.result);
         log(`Received result: ${(msg.result as string).length} chars`);
