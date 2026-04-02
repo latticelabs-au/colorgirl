@@ -354,25 +354,17 @@ trap cleanup EXIT INT TERM
 # 4. Build TUI locally and run
 # ---------------------------------------------------------------------------
 
-# Install local deps if needed (for TUI build)
-if [ ! -d "$SCRIPT_DIR/node_modules" ]; then
-  echo "Installing dependencies..."
-  if $VERBOSE; then
-    npm install --prefix "$SCRIPT_DIR"
-  else
-    npm install --prefix "$SCRIPT_DIR" > /dev/null 2>&1
-  fi
-fi
-
-echo "Building TUI..."
-if $VERBOSE; then
-  npm run build --prefix "$SCRIPT_DIR"
-else
-  npm run build --prefix "$SCRIPT_DIR" > /dev/null 2>&1
-fi
-
 echo ""
-# Force truecolor support for Ink/chalk (Git Bash may not advertise it)
-export COLORTERM=truecolor
-export FORCE_COLOR=3
-node "$SCRIPT_DIR/dist/cli/app.js"
+# Run TUI inside a container from the worker image (no local Node/npm required).
+# Uses the same Docker network so it can reach the Temporal server.
+COMPOSE_PROJECT="$(basename "$(dirname "$COMPOSE_FILE")")"
+docker run -it --rm \
+  --network "${COMPOSE_PROJECT}_default" \
+  -e TEMPORAL_ADDRESS=temporal:7233 \
+  -e CLAUDE_CODE_OAUTH_TOKEN="${CLAUDE_CODE_OAUTH_TOKEN:-}" \
+  -e ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY:-}" \
+  -e COLORTERM=truecolor \
+  -e FORCE_COLOR=3 \
+  -e COLORGIRL_VERBOSE="${COLORGIRL_VERBOSE:-0}" \
+  docker-colorgirl-worker \
+  node dist/cli/app.js
