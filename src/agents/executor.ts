@@ -17,6 +17,8 @@ export interface AgentOptions {
   systemPrompt: string;
   /** Max tokens for the response (default: 4096) */
   maxTokens?: number;
+  /** Max agentic turns (default: 50) */
+  maxTurns?: number;
 }
 
 export interface AgentResponse {
@@ -61,11 +63,15 @@ export async function executeAgent(
   const startTime = Date.now();
 
   const response = query({
-    model,
-    systemPrompt,
     prompt,
-    maxTokens,
-    allowedTools: [],
+    options: {
+      model,
+      systemPrompt,
+      maxTokens,
+      maxTurns: options.maxTurns ?? 50,
+      permissionMode: "bypassPermissions" as any,
+      allowDangerouslySkipPermissions: true,
+    },
   });
 
   const textParts: string[] = [];
@@ -176,8 +182,40 @@ export async function executeAgent(
  */
 export function parseJsonResponse<T>(text: string): T {
   let cleaned = text.trim();
+
+  // Extract JSON from markdown fences (may have prose before the fence)
+  const fenceMatch = cleaned.match(/```(?:json)?\s*\n([\s\S]*?)\n```/);
+  if (fenceMatch) {
+    cleaned = fenceMatch[1].trim();
+    return JSON.parse(cleaned) as T;
+  }
+
+  // Strip leading fence if text starts with it
   if (cleaned.startsWith("```")) {
     cleaned = cleaned.replace(/^```(?:json)?\s*\n?/, "").replace(/\n?```\s*$/, "");
+    return JSON.parse(cleaned) as T;
   }
+
+  // Try to find a JSON object or array in the text (skip leading prose)
+  const objStart = cleaned.indexOf("{");
+  const arrStart = cleaned.indexOf("[");
+  const jsonStart = objStart >= 0 && arrStart >= 0
+    ? Math.min(objStart, arrStart)
+    : objStart >= 0 ? objStart : arrStart;
+
+  if (jsonStart > 0) {
+    const openChar = cleaned[jsonStart];
+    const closeChar = openChar === "{" ? "}" : "]";
+    let depth = 0;
+    for (let i = jsonStart; i < cleaned.length; i++) {
+      if (cleaned[i] === openChar) depth++;
+      if (cleaned[i] === closeChar) depth--;
+      if (depth === 0) {
+        cleaned = cleaned.slice(jsonStart, i + 1);
+        return JSON.parse(cleaned) as T;
+      }
+    }
+  }
+
   return JSON.parse(cleaned) as T;
 }

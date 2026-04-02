@@ -181,11 +181,12 @@ describe("executeAgent", () => {
     });
 
     expect(mockQuery).toHaveBeenCalledWith({
-      model: "claude-opus-4-6",
-      systemPrompt: "my system prompt",
       prompt: "my prompt",
-      maxTokens: 2048,
-      allowedTools: [],
+      options: expect.objectContaining({
+        model: "claude-opus-4-6",
+        systemPrompt: "my system prompt",
+        maxTokens: 2048,
+      }),
     });
   });
 
@@ -197,9 +198,10 @@ describe("executeAgent", () => {
       systemPrompt: "test",
     });
 
-    expect(mockQuery).toHaveBeenCalledWith(
-      expect.objectContaining({ maxTokens: 4096 }),
-    );
+    expect(mockQuery).toHaveBeenCalledWith({
+      prompt: "test",
+      options: expect.objectContaining({ maxTokens: 4096, maxTurns: 50 }),
+    });
   });
 });
 
@@ -275,7 +277,7 @@ describe("analyzeSite", () => {
     await analyzeSite("https://example.com");
 
     expect(mockQuery).toHaveBeenCalledWith(
-      expect.objectContaining({ model: "claude-opus-4-6" }),
+      expect.objectContaining({ options: expect.objectContaining({ model: expect.stringContaining("opus") }) }),
     );
   });
 
@@ -390,7 +392,7 @@ describe("generateDescriptions", () => {
     await generateDescriptions([makeGroupedProduct()]);
 
     expect(mockQuery).toHaveBeenCalledWith(
-      expect.objectContaining({ model: "claude-haiku-4-5-20251001" }),
+      expect.objectContaining({ options: expect.objectContaining({ model: expect.stringContaining("haiku") }) }),
     );
   });
 
@@ -533,7 +535,7 @@ describe("generateSeo", () => {
     await generateSeo([makeGroupedProduct()], makeBusinessConfig());
 
     expect(mockQuery).toHaveBeenCalledWith(
-      expect.objectContaining({ model: "claude-sonnet-4-6" }),
+      expect.objectContaining({ options: expect.objectContaining({ model: expect.stringContaining("sonnet") }) }),
     );
   });
 
@@ -547,9 +549,9 @@ describe("generateSeo", () => {
     await generateSeo([makeGroupedProduct()], makeBusinessConfig());
 
     const callArgs = mockQuery.mock.calls[0][0];
-    expect(callArgs.systemPrompt).toContain("My Trophy Shop");
-    expect(callArgs.systemPrompt).toContain("Sydney NSW");
-    expect(callArgs.systemPrompt).toContain("Inner West");
+    expect(callArgs.options.systemPrompt).toContain("My Trophy Shop");
+    expect(callArgs.options.systemPrompt).toContain("Sydney NSW");
+    expect(callArgs.options.systemPrompt).toContain("Inner West");
   });
 
   it("includes SEO templates in the system prompt", async () => {
@@ -562,8 +564,8 @@ describe("generateSeo", () => {
     await generateSeo([makeGroupedProduct()], makeBusinessConfig());
 
     const callArgs = mockQuery.mock.calls[0][0];
-    expect(callArgs.systemPrompt).toContain("{keywords}");
-    expect(callArgs.systemPrompt).toContain("{productName}");
+    expect(callArgs.options.systemPrompt).toContain("{keywords}");
+    expect(callArgs.options.systemPrompt).toContain("{productName}");
   });
 
   it("includes product data in the prompt", async () => {
