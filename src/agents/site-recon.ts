@@ -31,7 +31,7 @@ A SiteConfig has these fields:
   - "playwright" — LAST RESORT ONLY. Use ONLY when the site is a genuine JavaScript SPA that renders product data client-side. This is extremely slow (~12 products/min), resource-intensive, and fragile. Do NOT recommend unless HTTP approaches are genuinely impossible.
 - discovery (object): Strategy for discovering product pages. One of three types:
   - { type: "sitemap", url: string, filterPatterns: string[] } — use when the site has an XML sitemap with product URLs
-  - { type: "category-list", sections: Array<{ name: string, path: string, categories: string[] }> } — use when the site has a clear category navigation structure
+  - { type: "category-list", sections: Array<{ name: string, path: string, categories: string[] }>, productLinkSelector?: string, productUrlPattern?: string } — use when the site has a clear category navigation structure. IMPORTANT: Always provide productLinkSelector (CSS selector for product links on category pages, e.g. ".product-card a", "a.product-title", ".woocommerce-loop-product__link") and/or productUrlPattern (regex to match product URLs, e.g. "/product/", "/shop/[^/]+/?$") so the scraper only follows product links, not navigation/footer/category links.
   - { type: "pagination", listSelector: string, nextSelector: string } — use when products are listed with pagination controls
 - selectors (object): CSS selectors for scraping product page fields:
   - name (string): selector for the product name/title
@@ -81,6 +81,7 @@ Analysis steps:
 Guidelines:
 - STRONGLY prefer "http-direct" pipeline — most supplier sites serve all data in HTML
 - Choose the discovery strategy that best fits the site's navigation structure
+- For category-list discovery, ALWAYS provide productLinkSelector and/or productUrlPattern — without these, the scraper grabs every link on the page (nav, footer, etc.) and fails to find products
 - Be conservative with rate limits (at least 1000ms)
 - Include only selectors you can confidently identify
 - Use appropriate transforms for colour attributes (strip_prefix for "Antique X" patterns, colour_cleanup for slash-separated colours)

@@ -209,6 +209,7 @@ export async function scrapeWorkflow(
     }
     pushLog(`Analysis complete — pipeline: ${siteConfig.pipeline}, extraction: ${siteConfig.variantExtraction.method}`);
     pushLog(`Found ${siteConfig.attributes.length} attributes, rate limit: ${siteConfig.rateLimit}ms`);
+    pushLog(`SiteConfig: ${JSON.stringify(siteConfig)}`);
 
     // 2. Wait for config approval
     status = {

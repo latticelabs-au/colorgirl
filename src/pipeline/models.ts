@@ -17,6 +17,10 @@ export interface CategoryListSection {
 export interface CategoryListDiscovery {
   type: "category-list";
   sections: CategoryListSection[];
+  /** CSS selector for product links on category pages (e.g. ".product-card a", "a.product-link") */
+  productLinkSelector?: string;
+  /** Regex pattern to match product URLs (e.g. "/product/" or "/shop/[^/]+$") */
+  productUrlPattern?: string;
 }
 
 export interface PaginationDiscovery {

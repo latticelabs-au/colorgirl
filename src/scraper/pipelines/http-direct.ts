@@ -52,6 +52,11 @@ async function discoverFromCategories(
   const disc = config.discovery;
 
   if (disc.type === "category-list") {
+    const linkSelector = disc.productLinkSelector ?? "a";
+    const urlPattern = disc.productUrlPattern
+      ? new RegExp(disc.productUrlPattern)
+      : null;
+
     for (const section of disc.sections) {
       for (const cat of section.categories) {
         const categoryUrl = `${config.baseUrl}${section.path}/${cat}`;
@@ -64,11 +69,15 @@ async function discoverFromCategories(
           try {
             const html = await client.get(pageUrl);
             const parsed = parseHtml(html);
-            const links = parsed.allAttr("a", "href");
+            const links = parsed.allAttr(linkSelector, "href");
             for (const link of links) {
-              if (link.startsWith(config.baseUrl) && link !== categoryUrl) {
-                urls.add(link);
-              }
+              const absLink = link.startsWith("/")
+                ? `${config.baseUrl}${link}`
+                : link;
+              if (!absLink.startsWith(config.baseUrl)) continue;
+              if (absLink === categoryUrl) continue;
+              if (urlPattern && !urlPattern.test(absLink)) continue;
+              urls.add(absLink);
             }
           } catch {
             break;
