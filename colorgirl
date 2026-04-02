@@ -272,15 +272,16 @@ fi
 # ---------------------------------------------------------------------------
 
 echo ""
-echo -n "Validating credentials..."
 
-# Build the worker image first (needed for claude --ping)
+# Build the worker image (needed for credential check and running)
+echo "Building worker image..."
 if $VERBOSE; then
   docker compose -f "$COMPOSE_FILE" build colorgirl-worker 2>&1
 else
   docker compose -f "$COMPOSE_FILE" build colorgirl-worker > /dev/null 2>&1
 fi
 
+echo -n "Validating credentials..."
 PING_RESULT=$(docker run --rm \
   -e CLAUDE_CODE_OAUTH_TOKEN="${CLAUDE_CODE_OAUTH_TOKEN:-}" \
   -e ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY:-}" \
