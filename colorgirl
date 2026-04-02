@@ -51,6 +51,129 @@ for arg in "$@"; do
 done
 
 # ---------------------------------------------------------------------------
+# Check prerequisites
+# ---------------------------------------------------------------------------
+
+check_docker() {
+  if command -v docker &>/dev/null && docker info &>/dev/null 2>&1; then
+    return 0
+  fi
+
+  echo "Docker is not installed or not running."
+  echo ""
+
+  # Detect platform and offer install
+  case "$(uname -s)" in
+    Darwin)
+      echo "Install Docker Desktop for Mac:"
+      if command -v brew &>/dev/null; then
+        read -rp "Install via Homebrew? [Y/n] " yn
+        case "${yn:-Y}" in
+          [Yy]*|"")
+            brew install --cask docker
+            echo "Docker Desktop installed. Please open it from Applications and wait for it to start."
+            echo "Then re-run ./colorgirl"
+            exit 0
+            ;;
+        esac
+      fi
+      echo "  https://docs.docker.com/desktop/install/mac-install/"
+      ;;
+    Linux)
+      echo "Install Docker Engine:"
+      if command -v apt-get &>/dev/null; then
+        read -rp "Install via apt? [Y/n] " yn
+        case "${yn:-Y}" in
+          [Yy]*|"")
+            curl -fsSL https://get.docker.com | sh
+            sudo usermod -aG docker "$USER"
+            echo "Docker installed. You may need to log out and back in for group changes."
+            echo "Then re-run ./colorgirl"
+            exit 0
+            ;;
+        esac
+      elif command -v dnf &>/dev/null; then
+        read -rp "Install via dnf? [Y/n] " yn
+        case "${yn:-Y}" in
+          [Yy]*|"")
+            sudo dnf install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+            sudo systemctl start docker
+            sudo usermod -aG docker "$USER"
+            echo "Docker installed. You may need to log out and back in for group changes."
+            echo "Then re-run ./colorgirl"
+            exit 0
+            ;;
+        esac
+      fi
+      echo "  https://docs.docker.com/engine/install/"
+      ;;
+    MINGW*|MSYS*|CYGWIN*)
+      echo "Install Docker Desktop for Windows:"
+      if command -v winget &>/dev/null; then
+        read -rp "Install via winget? [Y/n] " yn
+        case "${yn:-Y}" in
+          [Yy]*|"")
+            winget install -e --id Docker.DockerDesktop
+            echo "Docker Desktop installed. Please open it and wait for it to start."
+            echo "Then re-run ./colorgirl"
+            exit 0
+            ;;
+        esac
+      fi
+      echo "  https://docs.docker.com/desktop/install/windows-install/"
+      ;;
+    *)
+      echo "  https://docs.docker.com/get-docker/"
+      ;;
+  esac
+
+  exit 1
+}
+
+check_node() {
+  if command -v node &>/dev/null; then
+    return 0
+  fi
+
+  echo "Node.js is not installed."
+  echo ""
+
+  case "$(uname -s)" in
+    Darwin)
+      if command -v brew &>/dev/null; then
+        read -rp "Install via Homebrew? [Y/n] " yn
+        case "${yn:-Y}" in
+          [Yy]*|"") brew install node@20; exit 0 ;;
+        esac
+      fi
+      echo "  https://nodejs.org/en/download/"
+      ;;
+    Linux)
+      echo "Install via package manager or:"
+      echo "  curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -"
+      echo "  sudo apt-get install -y nodejs"
+      ;;
+    MINGW*|MSYS*|CYGWIN*)
+      if command -v winget &>/dev/null; then
+        read -rp "Install via winget? [Y/n] " yn
+        case "${yn:-Y}" in
+          [Yy]*|"") winget install -e --id OpenJS.NodeJS.LTS; exit 0 ;;
+        esac
+      fi
+      echo "  https://nodejs.org/en/download/"
+      ;;
+    *)
+      echo "  https://nodejs.org/en/download/"
+      ;;
+  esac
+
+  exit 1
+}
+
+check_docker
+check_node
+
+# ---------------------------------------------------------------------------
 # Handle --stop
 # ---------------------------------------------------------------------------
 
