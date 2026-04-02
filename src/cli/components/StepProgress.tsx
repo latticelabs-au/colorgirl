@@ -4,6 +4,11 @@ import { RainbowText } from "./RainbowText.js";
 import { theme } from "../theme.js";
 import type { WorkflowStatus } from "../../temporal/workflows/index.js";
 
+// Read version once at import time
+import { createRequire } from "node:module";
+const require = createRequire(import.meta.url);
+const { version } = require("../../../package.json") as { version: string };
+
 interface StepProgressProps {
   currentPhase: WorkflowStatus["phase"];
 }
@@ -52,6 +57,7 @@ export function StepProgress({
   return (
     <Box gap={1}>
       <RainbowText text="ColorGirl" bold />
+      <Text color={theme.textDim}>v{version}</Text>
       <Text color={theme.border}>|</Text>
       {STEPS.map((step, idx) => {
         const { icon, color } = stepStatus(idx, currentIdx, isError);
