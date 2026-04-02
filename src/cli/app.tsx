@@ -62,9 +62,9 @@ export type Screen =
 
 // ── Default business config ─────────────────────────────
 const DEFAULT_BUSINESS_CONFIG: BusinessConfig = {
-  name: "My Trophy Shop",
-  location: "Sydney NSW",
-  region: "Inner West",
+  name: "",
+  location: "",
+  region: "",
   seoTemplates: {
     metaTitle: "{keywords} {region} | {productName}",
     metaDescription:
