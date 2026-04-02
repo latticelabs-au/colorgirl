@@ -268,10 +268,55 @@ if $VERBOSE; then
 fi
 
 # ---------------------------------------------------------------------------
-# 2. Build & start Docker containers
+# 2. Validate credentials before spinning up infrastructure
 # ---------------------------------------------------------------------------
 
 echo ""
+echo -n "Validating credentials..."
+
+# Build the worker image first (needed for claude --ping)
+if $VERBOSE; then
+  docker compose -f "$COMPOSE_FILE" build colorgirl-worker 2>&1
+else
+  docker compose -f "$COMPOSE_FILE" build colorgirl-worker > /dev/null 2>&1
+fi
+
+PING_RESULT=$(docker run --rm \
+  -e CLAUDE_CODE_OAUTH_TOKEN="${CLAUDE_CODE_OAUTH_TOKEN:-}" \
+  -e ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY:-}" \
+  docker-colorgirl-worker \
+  claude --print "respond with exactly: ok" 2>&1) || true
+
+if echo "$PING_RESULT" | grep -qi "ok"; then
+  echo " valid."
+elif echo "$PING_RESULT" | grep -qi "expired"; then
+  echo ""
+  echo "ERROR: OAuth token has expired."
+  echo ""
+  echo "Fix: run 'claude' to re-authenticate, then re-run ./colorgirl"
+  echo "  Or pass an API key: ANTHROPIC_API_KEY=sk-ant-... ./colorgirl"
+  exit 1
+elif echo "$PING_RESULT" | grep -qi "authentication_error\|401\|unauthorized"; then
+  echo ""
+  echo "ERROR: Authentication failed."
+  echo ""
+  echo "Check your API key or OAuth token and try again."
+  if $VERBOSE; then
+    echo "Detail: $PING_RESULT"
+  fi
+  exit 1
+else
+  # Unknown response — might be fine, proceed with warning
+  echo " unknown response (proceeding anyway)."
+  if $VERBOSE; then
+    echo "Ping response: $PING_RESULT"
+  fi
+fi
+
+# ---------------------------------------------------------------------------
+# 3. Start Docker containers
+# ---------------------------------------------------------------------------
+
 echo "Starting infrastructure..."
 
 if $REBUILD; then
