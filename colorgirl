@@ -318,11 +318,21 @@ fi
 
 echo "Temporal ready."
 
-# Wait for worker to connect
-sleep 3
+# Wait for worker to connect (it may restart a few times while Temporal initialises)
+echo -n "Waiting for worker"
+WORKER_READY=false
+for i in $(seq 1 30); do
+  if docker compose -f "$COMPOSE_FILE" ps --status running 2>/dev/null | grep -q colorgirl-worker; then
+    WORKER_READY=true
+    break
+  fi
+  echo -n "."
+  sleep 3
+done
+echo ""
 
-if ! docker compose -f "$COMPOSE_FILE" ps --status running | grep -q colorgirl-worker; then
-  echo "WARNING: Worker container not running. Checking logs..."
+if ! $WORKER_READY; then
+  echo "ERROR: Worker failed to start."
   docker compose -f "$COMPOSE_FILE" logs --tail 20 colorgirl-worker
   exit 1
 fi
@@ -344,6 +354,17 @@ trap cleanup EXIT INT TERM
 # 4. Build TUI locally and run
 # ---------------------------------------------------------------------------
 
+# Install local deps if needed (for TUI build)
+if [ ! -d "$SCRIPT_DIR/node_modules" ]; then
+  echo "Installing dependencies..."
+  if $VERBOSE; then
+    npm install --prefix "$SCRIPT_DIR"
+  else
+    npm install --prefix "$SCRIPT_DIR" > /dev/null 2>&1
+  fi
+fi
+
+echo "Building TUI..."
 if $VERBOSE; then
   npm run build --prefix "$SCRIPT_DIR"
 else
