@@ -353,7 +353,15 @@ echo "Building worker image..."
 if $VERBOSE; then
   docker compose -f "$COMPOSE_FILE" build colorgirl-worker 2>&1
 else
-  docker compose -f "$COMPOSE_FILE" build colorgirl-worker > /dev/null 2>&1
+  BUILD_ERR=$(docker compose -f "$COMPOSE_FILE" build colorgirl-worker 2>&1)
+  if [ $? -ne 0 ]; then
+    echo ""
+    echo "ERROR: Docker build failed."
+    echo "$BUILD_ERR" | tail -5
+    echo ""
+    echo "Common fix: docker system prune -f (free disk space)"
+    exit 1
+  fi
 fi
 
 echo -n "Validating credentials..."
@@ -399,7 +407,15 @@ if $REBUILD; then
   if $VERBOSE; then
     docker compose -f "$COMPOSE_FILE" build --no-cache 2>&1
   else
-    docker compose -f "$COMPOSE_FILE" build --no-cache > /dev/null 2>&1
+    REBUILD_ERR=$(docker compose -f "$COMPOSE_FILE" build --no-cache 2>&1)
+    if [ $? -ne 0 ]; then
+      echo ""
+      echo "ERROR: Docker rebuild failed."
+      echo "$REBUILD_ERR" | tail -5
+      echo ""
+      echo "Common fix: docker system prune -f (free disk space)"
+      exit 1
+    fi
   fi
 fi
 
