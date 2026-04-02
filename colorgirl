@@ -1,0 +1,189 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+COMPOSE_FILE="$SCRIPT_DIR/docker/docker-compose.yml"
+
+# ---------------------------------------------------------------------------
+# Usage
+# ---------------------------------------------------------------------------
+
+usage() {
+  cat <<'EOF'
+Usage: ./colorgirl [OPTIONS]
+
+  Scrape supplier products and generate WooCommerce CSV imports.
+
+Options:
+  --verbose, -v    Show worker logs (Opus agent activity)
+  --stop           Tear down all containers
+  --rebuild        Force Docker rebuild (no cache)
+  --help, -h       Show this help
+
+Credentials:
+  Auto-reads OAuth token from ~/.claude/.credentials.json (Claude Code login).
+  Or set ANTHROPIC_API_KEY / CLAUDE_CODE_OAUTH_TOKEN in environment.
+
+Examples:
+  ./colorgirl                  Start everything, launch interactive TUI
+  ./colorgirl -v               Same but see Opus/worker logs
+  ./colorgirl --stop           Tear down containers
+  ./colorgirl --rebuild        Rebuild Docker images from scratch
+EOF
+}
+
+# ---------------------------------------------------------------------------
+# Parse flags
+# ---------------------------------------------------------------------------
+
+VERBOSE=false
+STOP=false
+REBUILD=false
+
+for arg in "$@"; do
+  case "$arg" in
+    --verbose|-v) VERBOSE=true ;;
+    --stop)       STOP=true ;;
+    --rebuild)    REBUILD=true ;;
+    --help|-h)    usage; exit 0 ;;
+    *)            echo "Unknown option: $arg"; usage; exit 1 ;;
+  esac
+done
+
+# ---------------------------------------------------------------------------
+# Handle --stop
+# ---------------------------------------------------------------------------
+
+if $STOP; then
+  echo "Stopping colorgirl containers..."
+  docker compose -f "$COMPOSE_FILE" down
+  echo "Done."
+  exit 0
+fi
+
+# ---------------------------------------------------------------------------
+# 1. Resolve credentials
+# ---------------------------------------------------------------------------
+
+if [ -z "${CLAUDE_CODE_OAUTH_TOKEN:-}" ] && [ -z "${ANTHROPIC_API_KEY:-}" ]; then
+  # Find credentials file
+  CRED_FILE=""
+  for candidate in "$HOME/.claude/.credentials.json" "$USERPROFILE/.claude/.credentials.json"; do
+    if [ -f "$candidate" ]; then
+      CRED_FILE="$candidate"
+      break
+    fi
+  done
+
+  if [ -n "$CRED_FILE" ]; then
+    # Convert MSYS/cygwin path to native for Node.js
+    NODE_CRED_FILE="$CRED_FILE"
+    if command -v cygpath &>/dev/null; then
+      NODE_CRED_FILE="$(cygpath -w "$CRED_FILE")"
+    fi
+    TOKEN=$(node -e "
+const fs = require('fs');
+try {
+  const data = JSON.parse(fs.readFileSync(String.raw\`$NODE_CRED_FILE\`, 'utf8'));
+  console.log(data.claudeAiOauth.accessToken);
+} catch(e) { process.exit(1); }
+" 2>/dev/null || true)
+    if [ -n "${TOKEN:-}" ]; then
+      export CLAUDE_CODE_OAUTH_TOKEN="$TOKEN"
+      echo "Loaded OAuth token from ~/.claude/.credentials.json"
+    fi
+  fi
+
+  if [ -z "${CLAUDE_CODE_OAUTH_TOKEN:-}" ] && [ -z "${ANTHROPIC_API_KEY:-}" ]; then
+    echo "ERROR: No credentials found."
+    echo ""
+    echo "Either:"
+    echo "  1. Log in via Claude Code (creates ~/.claude/.credentials.json)"
+    echo "  2. Set ANTHROPIC_API_KEY in your environment"
+    echo "  3. Set CLAUDE_CODE_OAUTH_TOKEN in your environment"
+    exit 1
+  fi
+fi
+
+export CLAUDE_CODE_OAUTH_TOKEN="${CLAUDE_CODE_OAUTH_TOKEN:-}"
+export ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY:-}"
+
+# ---------------------------------------------------------------------------
+# 2. Build & start Docker containers
+# ---------------------------------------------------------------------------
+
+echo "Starting colorgirl infrastructure..."
+
+BUILD_ARGS=""
+if $REBUILD; then
+  BUILD_ARGS="--no-cache"
+fi
+
+docker compose -f "$COMPOSE_FILE" up -d --build $BUILD_ARGS 2>&1 | grep -v "^$"
+
+# ---------------------------------------------------------------------------
+# 3. Wait for Temporal to be ready
+# ---------------------------------------------------------------------------
+
+echo -n "Waiting for Temporal"
+TEMPORAL_READY=false
+for i in $(seq 1 60); do
+  if docker compose -f "$COMPOSE_FILE" exec -T temporal temporal operator cluster health 2>/dev/null | grep -q SERVING; then
+    TEMPORAL_READY=true
+    break
+  fi
+  echo -n "."
+  sleep 2
+done
+echo ""
+
+if ! $TEMPORAL_READY; then
+  echo "ERROR: Temporal failed to start within 120 seconds."
+  echo "Check logs: docker compose -f $COMPOSE_FILE logs temporal"
+  exit 1
+fi
+
+echo "Temporal ready."
+
+# Wait a bit for worker to connect
+sleep 3
+
+# Check worker is running
+if ! docker compose -f "$COMPOSE_FILE" ps --status running | grep -q colorgirl-worker; then
+  echo "WARNING: Worker container not running. Checking logs..."
+  docker compose -f "$COMPOSE_FILE" logs --tail 20 colorgirl-worker
+  exit 1
+fi
+
+echo "Worker connected."
+
+# ---------------------------------------------------------------------------
+# 4. Verbose mode: tail worker logs in background
+# ---------------------------------------------------------------------------
+
+TAIL_PID=""
+if $VERBOSE; then
+  docker compose -f "$COMPOSE_FILE" logs -f colorgirl-worker 2>&1 | sed 's/^/[worker] /' >&2 &
+  TAIL_PID=$!
+fi
+
+# Cleanup on exit
+cleanup() {
+  if [ -n "$TAIL_PID" ]; then
+    kill "$TAIL_PID" 2>/dev/null || true
+  fi
+}
+trap cleanup EXIT
+
+# ---------------------------------------------------------------------------
+# 5. Build TUI locally and run
+# ---------------------------------------------------------------------------
+
+echo "Building TUI..."
+npm run build --prefix "$SCRIPT_DIR" 2>/dev/null
+
+echo ""
+echo "Launching ColorGirl..."
+echo ""
+
+node "$SCRIPT_DIR/dist/cli/app.js"

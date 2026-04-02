@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   # Temporal server with PostgreSQL persistence
   temporal-db:
@@ -13,11 +11,17 @@ services:
       - "5433:5432"
     volumes:
       - temporal-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U temporal"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
   temporal:
     image: temporalio/auto-setup:latest
     depends_on:
-      - temporal-db
+      temporal-db:
+        condition: service_healthy
     environment:
       - DB=postgres12
       - DB_PORT=5432
@@ -25,7 +29,7 @@ services:
       - POSTGRES_PWD=temporal
       - POSTGRES_SEEDS=temporal-db
     ports:
-      - "7233:7233"  # gRPC (CLI connects here)
+      - "7233:7233"
 
   # Temporal Web UI (optional, for debugging)
   temporal-ui:
@@ -46,9 +50,10 @@ services:
       - temporal
     environment:
       - TEMPORAL_ADDRESS=temporal:7233
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - CLAUDE_CODE_OAUTH_TOKEN=${CLAUDE_CODE_OAUTH_TOKEN:-}
     volumes:
-      - ../output:/app/output  # CSV output directory
+      - ../output:/app/output
 
 volumes:
   temporal-db-data:
