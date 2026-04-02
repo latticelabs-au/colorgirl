@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Box, Text } from "ink";
 import { KeyHint, StepProgress, Panel } from "../components/index.js";
 import { theme } from "../theme.js";
@@ -9,14 +9,37 @@ interface ExportScreenProps {
   productCount: number;
 }
 
+const HEARTS = [
+  "    ♥        ♥    ",
+  "  ♥    ♥   ♥   ♥  ",
+  " ♥  ♥    ♥   ♥    ",
+  "♥     ♥       ♥   ",
+  ".   .     .    .   ",
+];
+const HEART_TICK_MS = 500;
+const HEART_FRAMES = HEARTS.length;
+
 export function ExportScreen({
   filePath,
   rowCount,
   productCount,
 }: ExportScreenProps): React.ReactElement {
+  const [heartFrame, setHeartFrame] = useState(0);
+
+  useEffect(() => {
+    if (heartFrame >= HEART_FRAMES) return;
+    const t = setTimeout(() => setHeartFrame((f) => f + 1), HEART_TICK_MS);
+    return () => clearTimeout(t);
+  }, [heartFrame]);
+
   return (
     <Box flexDirection="column" gap={1}>
       <StepProgress currentPhase="complete" />
+
+      {heartFrame < HEART_FRAMES && (
+        <Text color={theme.accentBright}>{HEARTS[heartFrame]}</Text>
+      )}
+
       <Text bold color={theme.success}>
         Export Complete
       </Text>

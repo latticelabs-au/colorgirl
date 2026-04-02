@@ -1,5 +1,6 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Box, Text } from "ink";
+import { RainbowText } from "./RainbowText.js";
 import { theme } from "../theme.js";
 import type { WorkflowStatus } from "../../temporal/workflows/index.js";
 
@@ -41,15 +42,23 @@ export function StepProgress({
   const isError = currentPhase === "error";
   const currentIdx = STEPS.findIndex((s) => s.phases.includes(currentPhase));
 
+  // Pulse the active step indicator between accent and accentBright
+  const [pulse, setPulse] = useState(false);
+  useEffect(() => {
+    const t = setInterval(() => setPulse((p) => !p), 500);
+    return () => clearInterval(t);
+  }, []);
+
   return (
     <Box gap={1}>
-      <Text bold color={theme.accent}>ColorGirl</Text>
-      <Text color={theme.border}>│</Text>
+      <RainbowText text="ColorGirl" bold />
+      <Text color={theme.border}>|</Text>
       {STEPS.map((step, idx) => {
         const { icon, color } = stepStatus(idx, currentIdx, isError);
+        const isActive = idx === currentIdx && !isError;
         return (
           <Box key={step.label}>
-            <Text color={color}>
+            <Text color={isActive ? (pulse ? theme.accentBright : theme.accent) : color}>
               {icon} {step.label}
             </Text>
           </Box>

@@ -10,3 +10,5 @@ export { StepProgress } from "./StepProgress.js";
 export { Divider } from "./Divider.js";
 export { Panel } from "./Panel.js";
 export { HelpOverlay } from "./HelpOverlay.js";
+export { Shimmer } from "./Shimmer.js";
+export { RainbowText } from "./RainbowText.js";

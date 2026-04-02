@@ -42,7 +42,7 @@ export function EnrichmentScreen({
       {recentLogs.length > 0 && (
         <Box flexDirection="column" marginTop={1}>
           {recentLogs.map((line, i) => (
-            <Text key={i} color={theme.textDim}>{line}</Text>
+            <Text key={i} color={theme.textDim} dimColor={i < recentLogs.length - 3}>{line}</Text>
           ))}
         </Box>
       )}

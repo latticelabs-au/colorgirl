@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Box, Text } from "ink";
-import { Spinner, StepProgress } from "../components/index.js";
+import { Spinner, StepProgress, Shimmer } from "../components/index.js";
 import { theme } from "../theme.js";
 import { formatElapsed } from "../utils.js";
 
@@ -32,7 +32,11 @@ export function AnalysisScreen({
       <Text bold color={theme.accent}>
         Site Analysis
       </Text>
-      <Spinner label={`Analysing ${url}...`} />
+      <Box>
+        <Spinner label="" />
+        <Text> </Text>
+        <Shimmer text={`Analysing ${url}...`} />
+      </Box>
       <Text color={theme.textDim}>
         Elapsed: {timeStr} — typically 2-8 min (Opus is browsing the site)
       </Text>
