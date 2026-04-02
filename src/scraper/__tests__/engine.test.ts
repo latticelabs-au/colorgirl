@@ -49,6 +49,8 @@ function makeConfig(overrides: Partial<SiteConfig> = {}): SiteConfig {
     attributes: [],
     rateLimit: 0,
     variants: { type: "same-page" },
+    pipeline: "http-direct",
+    variantExtraction: { method: "visible-table", tableSelector: "table" },
     ...overrides,
   };
 }

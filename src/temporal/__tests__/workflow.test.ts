@@ -133,6 +133,8 @@ function makeSiteConfig(): SiteConfig {
     ],
     rateLimit: 1500,
     variants: { type: "same-page" },
+    pipeline: "http-direct",
+    variantExtraction: { method: "visible-table", tableSelector: "table" },
   };
 }
 

@@ -31,6 +31,8 @@ const SITE_CONFIG: SiteConfig = {
   ],
   rateLimit: 500,
   variants: { type: "same-page" },
+  pipeline: "http-direct",
+  variantExtraction: { method: "visible-table", tableSelector: "table" },
 };
 
 const BUSINESS_CONFIG: BusinessConfig = {

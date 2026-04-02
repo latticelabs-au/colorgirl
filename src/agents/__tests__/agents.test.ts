@@ -261,6 +261,8 @@ describe("analyzeSite", () => {
     ],
     rateLimit: 1500,
     variants: { type: "same-page" },
+    pipeline: "http-direct",
+    variantExtraction: { method: "visible-table", tableSelector: "table" },
   };
 
   it("calls executeAgent with the Opus model", async () => {

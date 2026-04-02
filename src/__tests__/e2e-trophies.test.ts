@@ -170,6 +170,13 @@ const siteConfig: SiteConfig = {
     type: "separate-pages",
     linkSelector: "main a[href*='/products/']",
   },
+  pipeline: "http-direct",
+  variantExtraction: {
+    method: "template-tags",
+    templateSelector: "template[data-temp-id]",
+    skuAttribute: "data-temp-id",
+    innerFormat: "table",
+  },
 };
 
 // ---------------------------------------------------------------------------

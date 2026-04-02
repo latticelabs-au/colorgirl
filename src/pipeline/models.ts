@@ -60,6 +60,60 @@ export type VariantStrategy =
   | AjaxDropdownVariants;
 
 // ---------------------------------------------------------------------------
+// Variant extraction strategies (how to extract variant data from HTML)
+// ---------------------------------------------------------------------------
+
+export interface TemplateTagExtraction {
+  method: "template-tags";
+  /** CSS selector or regex for template elements, e.g. "template[data-temp-id]" */
+  templateSelector: string;
+  /** Attribute containing the variant SKU, e.g. "data-temp-id" */
+  skuAttribute: string;
+  /** How to parse inner HTML of each template */
+  innerFormat: "table" | "list";
+}
+
+export interface SelectDropdownExtraction {
+  method: "select-dropdown";
+  /** CSS selector for the dropdown, e.g. "select.jsVariationDropdown" */
+  dropdownSelector: string;
+  /** How to derive variant SKUs from dropdown options */
+  skuInference: "increment-last-letter" | "from-option-value" | "from-option-data";
+}
+
+export interface VisibleTableExtraction {
+  method: "visible-table";
+  /** CSS selector for the product data table */
+  tableSelector: string;
+}
+
+export interface BulletListExtraction {
+  method: "bullet-list";
+  /** CSS selector for list items containing attributes */
+  listSelector: string;
+  /** Known attribute keys to extract (e.g. ["Colour", "Material", "Weight(g)"]) */
+  knownKeys: string[];
+}
+
+export interface InteractiveExtraction {
+  method: "interactive";
+  /** Playwright interaction steps to reveal variant data */
+  steps: Array<{
+    action: "click" | "select" | "wait";
+    selector: string;
+    value?: string;
+    waitFor?: string;
+  }>;
+}
+
+export type VariantExtraction =
+  | TemplateTagExtraction
+  | SelectDropdownExtraction
+  | VisibleTableExtraction
+  | BulletListExtraction
+  | InteractiveExtraction;
+
+// ---------------------------------------------------------------------------
 // Attribute definition
 // ---------------------------------------------------------------------------
 
@@ -76,6 +130,8 @@ export interface AttributeDef {
   selector?: string;
   /** Named transform to apply: "strip_prefix", "reorder_colours", "replace_slashes", "format_number", "colour_cleanup" */
   transform?: string;
+  /** Argument for parameterised transforms (e.g. prefix string for "strip_prefix", default "Antique") */
+  transformArg?: string;
   /** true = auto-assign S/M/L/XL labels based on variant count */
   sizeLabels?: boolean;
 }
@@ -122,6 +178,10 @@ export interface SiteConfig {
   categoryMap?: Record<string, string>;
   /** Category slugs/names to skip during scraping */
   skipCategories?: string[];
+  /** Which scraping pipeline tier to use */
+  pipeline: "http-direct" | "sitemap-http" | "playwright";
+  /** How to extract variant data from product pages */
+  variantExtraction: VariantExtraction;
 }
 
 // ---------------------------------------------------------------------------
