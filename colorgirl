@@ -327,10 +327,26 @@ if $VERBOSE; then
 fi
 
 # ---------------------------------------------------------------------------
-# 2. Validate credentials before spinning up infrastructure
+# 2. Refresh + validate credentials before spinning up infrastructure
 # ---------------------------------------------------------------------------
 
 echo ""
+
+# If using OAuth, run claude locally to refresh the token in ~/.claude/.credentials.json
+if [ -n "${CLAUDE_CODE_OAUTH_TOKEN:-}" ] && command -v claude &>/dev/null; then
+  echo -n "Refreshing OAuth token..."
+  claude --print "ping" > /dev/null 2>&1 || true
+
+  # Re-read the (possibly refreshed) token from credentials file
+  CRED_FILE="$(find_cred_file)"
+  if [ -n "$CRED_FILE" ]; then
+    NEW_TOKEN="$(read_token_from_file "$CRED_FILE")"
+    if [ -n "$NEW_TOKEN" ]; then
+      export CLAUDE_CODE_OAUTH_TOKEN="$NEW_TOKEN"
+    fi
+  fi
+  echo " done."
+fi
 
 # Build the worker image (needed for credential check and running)
 echo "Building worker image..."
@@ -341,38 +357,11 @@ else
 fi
 
 echo -n "Validating credentials..."
-
-# First attempt
 PING_RESULT=$(docker run --rm \
   -e CLAUDE_CODE_OAUTH_TOKEN="${CLAUDE_CODE_OAUTH_TOKEN:-}" \
   -e ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY:-}" \
   docker-colorgirl-worker \
   claude --print "respond with exactly: ok" 2>&1) || true
-
-if echo "$PING_RESULT" | grep -qi "expired"; then
-  # Token expired — try refreshing via claude CLI (like logan does)
-  echo " token expired, refreshing..."
-  CRED_FILE="$(find_cred_file)"
-  if [ -n "$CRED_FILE" ]; then
-    # Run claude --print to trigger refresh in credentials file
-    docker run --rm \
-      -e CLAUDE_CODE_OAUTH_TOKEN="${CLAUDE_CODE_OAUTH_TOKEN:-}" \
-      docker-colorgirl-worker \
-      claude --print "ping" > /dev/null 2>&1 || true
-
-    # Re-read refreshed token
-    NEW_TOKEN="$(read_token_from_file "$CRED_FILE")"
-    if [ -n "$NEW_TOKEN" ] && [ "$NEW_TOKEN" != "${CLAUDE_CODE_OAUTH_TOKEN:-}" ]; then
-      export CLAUDE_CODE_OAUTH_TOKEN="$NEW_TOKEN"
-      echo -n "  Retrying with refreshed token..."
-
-      PING_RESULT=$(docker run --rm \
-        -e CLAUDE_CODE_OAUTH_TOKEN="$NEW_TOKEN" \
-        docker-colorgirl-worker \
-        claude --print "respond with exactly: ok" 2>&1) || true
-    fi
-  fi
-fi
 
 if echo "$PING_RESULT" | grep -qi "ok"; then
   echo " valid."
@@ -380,6 +369,9 @@ elif echo "$PING_RESULT" | grep -qi "expired\|authentication_error\|401\|unautho
   echo ""
   echo "ERROR: Authentication failed."
   echo ""
+  if command -v claude &>/dev/null; then
+    echo "The token could not be refreshed automatically."
+  fi
   echo "Fix: run 'claude' to re-authenticate, then re-run ./colorgirl"
   echo "  Or pass an API key: ANTHROPIC_API_KEY=sk-ant-... ./colorgirl"
   if $VERBOSE; then
