@@ -6,3 +6,6 @@ dist/
 output/
 *.csv
 *.tsbuildinfo
+.claude/
+.superpowers/
+colorgirl.log

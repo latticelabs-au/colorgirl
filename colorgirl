@@ -277,10 +277,16 @@ echo "Worker connected."
 # 4. Verbose mode: tail worker logs in background
 # ---------------------------------------------------------------------------
 
+LOG_FILE="$SCRIPT_DIR/colorgirl.log"
 TAIL_PID=""
+
 if $VERBOSE; then
-  docker compose -f "$COMPOSE_FILE" logs -f colorgirl-worker 2>&1 | sed 's/^/[worker] /' >&2 &
+  # Stream worker logs to a file — not to the TUI terminal
+  docker compose -f "$COMPOSE_FILE" logs -f colorgirl-worker > "$LOG_FILE" 2>&1 &
   TAIL_PID=$!
+  echo "Worker logs streaming to: $LOG_FILE"
+  echo "  (tail -f $LOG_FILE in another terminal)"
+  echo ""
 fi
 
 # Cleanup on exit (any exit — success, error, or Ctrl+C)
