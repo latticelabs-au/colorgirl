@@ -77,9 +77,24 @@ export async function executeAgent(
     if (event && typeof event === "object") {
       const msg = event as Record<string, unknown>;
 
-      // Log event types for debugging
-      if (VERBOSE && msg.type) {
-        log(`Event #${eventCount}: type=${msg.type as string}`);
+      // Log event types and structure for debugging
+      if (VERBOSE) {
+        const type = msg.type as string ?? "unknown";
+        const keys = Object.keys(msg).join(",");
+        log(`Event #${eventCount}: type=${type} keys=[${keys}]`);
+        if (type === "result" || type === "assistant") {
+          const contentLen = Array.isArray(msg.content) ? msg.content.length : 0;
+          log(`  content blocks: ${contentLen}`);
+          if (Array.isArray(msg.content)) {
+            for (const b of msg.content) {
+              if (b && typeof b === "object") {
+                const bType = (b as any).type ?? "?";
+                const bText = (b as any).text;
+                log(`  block: type=${bType}${bText ? ` text=${(bText as string).slice(0, 80)}...` : ""}`);
+              }
+            }
+          }
+        }
       }
 
       // Handle result-type messages with content blocks
@@ -97,6 +112,12 @@ export async function executeAgent(
             log(`Received ${(block.text as string).length} chars of text`);
           }
         }
+      }
+
+      // Handle result event — SDK returns final text here
+      if (typeof msg.result === "string" && msg.result.length > 0) {
+        textParts.push(msg.result);
+        log(`Received result: ${(msg.result as string).length} chars`);
       }
 
       // Capture usage stats if present
