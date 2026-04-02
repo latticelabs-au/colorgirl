@@ -10,8 +10,9 @@ COPY package.json package-lock.json ./
 RUN npm ci
 
 # Install Claude Code CLI globally (required by claude-agent-sdk at runtime).
-# This is slow (~2-5 min) but only runs once — cached after first build.
-RUN npm install -g @anthropic-ai/claude-code
+# Pin to 2.1.87 — CLI 2.1.90 requires --verbose with --output-format stream-json
+# which SDK 0.2.90 doesn't pass, causing exit code 1.
+RUN npm install -g @anthropic-ai/claude-code@2.1.87
 
 # Install Playwright browsers (for tier 3 only)
 RUN npx playwright install chromium
