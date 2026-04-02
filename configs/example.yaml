@@ -80,6 +80,19 @@ attributes:
     isVariation: false
     isGlobal: false
 
+# Scraping pipeline tier (http-direct | sitemap-http | playwright)
+# http-direct: category pages -> product URLs -> HTTP fetch+parse (fastest, default)
+# sitemap-http: sitemap.xml -> product URLs -> HTTP fetch+parse (for AJAX category pages)
+# playwright: full browser automation (last resort, very slow)
+pipeline: "http-direct"
+
+# How to extract variant data from product pages
+variantExtraction:
+  method: "template-tags"
+  templateSelector: "template[data-temp-id]"
+  skuAttribute: "data-temp-id"
+  innerFormat: "table"
+
 # Milliseconds between requests
 rateLimit: 2000
 

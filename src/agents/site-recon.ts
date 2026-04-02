@@ -25,6 +25,10 @@ const SYSTEM_PROMPT = `You are a web scraping expert. Your task is to analyse a 
 A SiteConfig has these fields:
 - name (string): Machine-readable identifier derived from the domain, e.g. "trophies-com-au"
 - baseUrl (string): Root URL of the site, e.g. "https://trophies.com.au"
+- pipeline (string): Which scraping tier to use. One of:
+  - "http-direct" — DEFAULT. Use when the site serves product data in initial HTML with clear category navigation. Fastest (~100 products/min), lightest. Always prefer this.
+  - "sitemap-http" — Use when category pages rely on AJAX/infinite scroll but individual product pages are static HTML and a sitemap.xml is available.
+  - "playwright" — LAST RESORT ONLY. Use ONLY when the site is a genuine JavaScript SPA that renders product data client-side. This is extremely slow (~12 products/min), resource-intensive, and fragile. Do NOT recommend unless HTTP approaches are genuinely impossible.
 - discovery (object): Strategy for discovering product pages. One of three types:
   - { type: "sitemap", url: string, filterPatterns: string[] } — use when the site has an XML sitemap with product URLs
   - { type: "category-list", sections: Array<{ name: string, path: string, categories: string[] }> } — use when the site has a clear category navigation structure
@@ -41,6 +45,12 @@ A SiteConfig has these fields:
   - height (string, optional): selector for height
   - categoryBreadcrumb (string, optional): selector for breadcrumb navigation
   - extra (Record<string, string>, optional): extra selectors keyed by attribute slug
+- variantExtraction (object): How to extract variant/size data from product pages. One of:
+  - { method: "template-tags", templateSelector: string, skuAttribute: string, innerFormat: "table"|"list" } — variant data is embedded in <template> tags within the page HTML. Use templateSelector to match the elements (e.g. "template[data-temp-id]"), skuAttribute for the attribute containing the variant SKU, and innerFormat to describe how inner HTML is structured.
+  - { method: "select-dropdown", dropdownSelector: string, skuInference: "increment-last-letter"|"from-option-value"|"from-option-data" } — sizes/variants are in a <select> dropdown. Use "increment-last-letter" when variant SKUs follow A→B→C pattern.
+  - { method: "visible-table", tableSelector: string } — product specs are in a visible HTML table with key-value rows.
+  - { method: "bullet-list", listSelector: string, knownKeys: string[] } — attributes are in <li> elements as "Key: Value" pairs. List the known attribute keys to extract.
+  - { method: "interactive", steps: Array<{action, selector, value?, waitFor?}> } — ONLY for playwright pipeline. Requires clicking/interacting to reveal variant data.
 - attributes (array): Attribute definitions, each with:
   - name (string): display name, e.g. "Colour"
   - slug (string): taxonomy slug, e.g. "pa_colour"
@@ -48,6 +58,7 @@ A SiteConfig has these fields:
   - isGlobal (boolean): true if a WooCommerce global attribute
   - selector (string, optional): CSS selector on product page
   - transform (string, optional): named transform to apply: "strip_prefix", "reorder_colours", "replace_slashes", "format_number", "colour_cleanup"
+  - transformArg (string, optional): argument for parameterised transforms (e.g. prefix string for strip_prefix)
   - sizeLabels (boolean, optional): true to auto-assign S/M/L/XL labels
 - rateLimit (number): milliseconds between requests (recommended: 1000-2000)
 - variants (object): Strategy for finding size/colour variants. One of:
@@ -57,11 +68,23 @@ A SiteConfig has these fields:
 - categoryMap (Record<string, string>, optional): maps URL slugs to display names
 - skipCategories (string[], optional): category slugs to skip during scraping
 
+Analysis steps:
+1. Check if the site has a sitemap at /sitemap.xml, /sitemap_index.xml, or /sitemap.xml.gz
+2. View the HTML source of a product page (not the rendered page). Look for:
+   - <template> tags containing variant data (sizes, specifications)
+   - <select> dropdowns with size/colour options
+   - Visible tables with product specifications
+   - Bullet lists with attribute key:value pairs
+   - Whether variant data requires JavaScript to load
+3. Determine the cheapest viable pipeline: prefer "http-direct", fall back to "sitemap-http", only use "playwright" if the site genuinely requires JavaScript rendering
+
 Guidelines:
+- STRONGLY prefer "http-direct" pipeline — most supplier sites serve all data in HTML
 - Choose the discovery strategy that best fits the site's navigation structure
 - Be conservative with rate limits (at least 1000ms)
 - Include only selectors you can confidently identify
 - Use appropriate transforms for colour attributes (strip_prefix for "Antique X" patterns, colour_cleanup for slash-separated colours)
+- The variantExtraction method should match how variant data is actually stored in the HTML
 
 IMPORTANT: Respond with ONLY a valid JSON object. No markdown fences, no explanation, just the JSON.`;
 
@@ -106,6 +129,8 @@ export async function analyzeSite(url: string): Promise<SiteConfig> {
     "attributes",
     "rateLimit",
     "variants",
+    "pipeline",
+    "variantExtraction",
   ];
 
   for (const field of requiredFields) {
