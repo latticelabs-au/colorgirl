@@ -31,9 +31,12 @@ export const LOGO = `
   \\___\\___/_\\___/_|   |___/_|_| |_|
 `;
 
-/** Small mascot — a little trophy with a heart. */
+/** Small mascot — a paint swatch with a face. 5 lines, plain ASCII. */
 export const MASCOT = [
-  "  \\♥/",
-  "  ─┬─",
-  "  ╱ ╲",
+  "  .------.",
+  "  | *  * |",
+  "  |  <>  |",
+  "  '------'",
+  "    |  |",
 ];
+

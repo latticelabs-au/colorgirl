@@ -59,10 +59,10 @@ export function WelcomeScreen({
             </Text>
           ))}
           <Text color={theme.accentLight}>v{version}</Text>
-          <Box marginTop={1}>
+          <Box flexDirection="column" marginTop={1}>
             {MASCOT.map((line, i) => (
-              <Text key={i} color={i === 0 ? theme.accentBright : theme.accent}>
-                {i > 0 ? "\n" : ""}{line}
+              <Text key={i} color={theme.accent}>
+                {line}
               </Text>
             ))}
           </Box>
