@@ -71,7 +71,7 @@ export function WelcomeScreen({
         {/* Right: status + info */}
         <Box flexDirection="column" gap={1}>
           <Text bold color={theme.text}>
-            Hey User! ✿
+            Welcome ✿
           </Text>
           <Text color={theme.textDim}>
             AI-powered product scraper → WooCommerce CSV
