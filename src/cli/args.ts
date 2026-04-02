@@ -1,6 +1,6 @@
 import { parseArgs } from "node:util";
 
-export const VERSION = "1.2.6";
+export const VERSION = "1.2.7";
 
 export interface CliArgs {
   help: boolean;
