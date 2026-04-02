@@ -124,8 +124,14 @@ export async function executeAgent(
         }
       }
 
-      // Handle result event — SDK may return final text here
+      // Handle result event — use this as the authoritative response
+      // It contains the final clean output, while message.content may include
+      // intermediate thinking/commentary from multi-turn agentic runs
       if (typeof msg.result === "string" && msg.result.length > 0) {
+        if (textParts.length > 0) {
+          log(`Replacing ${textParts.join("").length} chars of intermediate text with ${(msg.result as string).length} char result`);
+          textParts.length = 0;
+        }
         textParts.push(msg.result);
         log(`Received result: ${(msg.result as string).length} chars`);
       }
