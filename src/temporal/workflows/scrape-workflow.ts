@@ -43,6 +43,7 @@ export const getPreviewQuery = defineQuery<EnrichedProduct[]>("getPreview");
 export const getSuggestedConfigQuery =
   defineQuery<SiteConfig | null>("getSuggestedConfig");
 export const getScrapeErrorsQuery = defineQuery<ScrapeError[]>("getScrapeErrors");
+export const getLogsQuery = defineQuery<string[]>("getLogs");
 
 // ── Constants ───────────────────────────────────────────
 const APPROVAL_TIMEOUT = "24 hours";
@@ -151,6 +152,14 @@ export async function scrapeWorkflow(
   let approvedSkus: string[] | null = null;
   let exportApproved = false;
   let scrapeErrors: ScrapeError[] = [];
+  let logs: string[] = [];
+
+  function pushLog(msg: string): void {
+    const ts = new Date().toISOString().slice(11, 19);
+    logs.push(`[${ts}] ${msg}`);
+    // Keep last 50 lines
+    if (logs.length > 50) logs = logs.slice(-50);
+  }
 
   // Register query handlers
   setHandler(getStatusQuery, () => status);
@@ -159,6 +168,7 @@ export async function scrapeWorkflow(
   setHandler(getPreviewQuery, () => enrichedProducts);
   setHandler(getSuggestedConfigQuery, () => suggestedConfig);
   setHandler(getScrapeErrorsQuery, () => scrapeErrors);
+  setHandler(getLogsQuery, () => logs);
 
   // Register signal handlers
   setHandler(configApprovedSignal, (config) => {
@@ -174,14 +184,19 @@ export async function scrapeWorkflow(
   try {
     // 1. Analyse site
     status = { phase: "analyzing", message: `Analysing ${input.url}...` };
+    pushLog(`Starting site analysis: ${input.url}`);
+    pushLog(`Using Opus agent for deep site reconnaissance...`);
     const siteConfig = await analyzeSiteActivity(input.url);
     suggestedConfig = siteConfig;
+    pushLog(`Analysis complete — pipeline: ${siteConfig.pipeline}, extraction: ${siteConfig.variantExtraction.method}`);
+    pushLog(`Found ${siteConfig.attributes.length} attributes, rate limit: ${siteConfig.rateLimit}ms`);
 
     // 2. Wait for config approval
     status = {
       phase: "awaiting-config",
       message: "Waiting for config approval...",
     };
+    pushLog("Awaiting config approval...");
     const configApproved = await condition(() => approvedConfig !== null, APPROVAL_TIMEOUT);
     if (!configApproved) {
       throw new Error("Timed out waiting for config approval");
@@ -190,8 +205,10 @@ export async function scrapeWorkflow(
 
     // 3. Scrape
     status = { phase: "scraping", message: "Scraping products..." };
+    pushLog(`Config approved. Starting scrape with ${config.pipeline} pipeline...`);
     const allProducts: RawProduct[] = [];
     const categories = deriveCategories(config);
+    pushLog(categories.length > 0 ? `Scraping ${categories.length} categories` : "Scraping all products in one pass");
 
     if (categories.length > 0) {
       for (let i = 0; i < categories.length; i++) {
@@ -204,6 +221,7 @@ export async function scrapeWorkflow(
         const result = await scrapeCategoryActivity(config, categories[i]);
         allProducts.push(...result.products);
         scrapeErrors.push(...result.errors);
+        pushLog(`Category ${i + 1}/${categories.length}: ${categories[i]} — ${result.products.length} products, ${result.errors.length} errors`);
       }
     } else {
       // No category-list discovery — scrape everything in one pass
@@ -214,12 +232,15 @@ export async function scrapeWorkflow(
     }
 
     // 4. Group products
+    pushLog(`Scraping complete — ${allProducts.length} raw products, ${scrapeErrors.length} errors`);
+    pushLog("Grouping variants...");
     groupedProducts = await groupProductsActivity(
       allProducts,
       config.attributes,
     );
 
     // 5. Wait for product approval
+    pushLog(`Grouped into ${groupedProducts.length} products (${groupedProducts.filter(p => p.type === "variable").length} variable, ${groupedProducts.filter(p => p.type === "simple").length} simple)`);
     status = {
       phase: "awaiting-products",
       message: `${groupedProducts.length} products grouped. Waiting for approval...`,
@@ -234,17 +255,19 @@ export async function scrapeWorkflow(
     );
 
     // 6. AI enrichment
+    pushLog(`${groupedProducts.length} products approved. Starting AI enrichment...`);
+    pushLog("Running Haiku (descriptions) + Sonnet (SEO) in parallel...");
     status = {
       phase: "enriching",
       message: `Generating descriptions and SEO for ${groupedProducts.length} products...`,
     };
-    const descriptions = await generateDescsActivity(groupedProducts);
-    const seoData = await generateSeoActivity(
-      groupedProducts,
-      input.businessConfig,
-    );
+    const [descriptions, seoData] = await Promise.all([
+      generateDescsActivity(groupedProducts),
+      generateSeoActivity(groupedProducts, input.businessConfig),
+    ]);
 
     // 7. Merge enrichment into products
+    pushLog(`Enrichment complete — ${descriptions.length} descriptions, ${seoData.length} SEO entries`);
     enrichedProducts = mergeEnrichment(groupedProducts, descriptions, seoData);
 
     // 8. Wait for export approval
@@ -258,6 +281,7 @@ export async function scrapeWorkflow(
     }
 
     // 9. Build CSV
+    pushLog("Export approved. Building WooCommerce CSV...");
     status = { phase: "exporting", message: "Building CSV..." };
     const outputPath =
       input.outputPath ?? `./output/${config.name}-${Date.now()}.csv`;
@@ -267,6 +291,7 @@ export async function scrapeWorkflow(
       outputPath,
     );
 
+    pushLog(`CSV exported: ${csvResult.rowCount} rows → ${csvResult.filePath}`);
     status = {
       phase: "complete",
       message: `Exported ${csvResult.rowCount} rows to ${csvResult.filePath}`,

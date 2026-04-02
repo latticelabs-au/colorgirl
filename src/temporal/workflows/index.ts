@@ -11,6 +11,7 @@ export {
   getPreviewQuery,
   getSuggestedConfigQuery,
   getScrapeErrorsQuery,
+  getLogsQuery,
 } from "./scrape-workflow.js";
 
 export type {

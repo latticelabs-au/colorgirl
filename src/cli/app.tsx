@@ -10,6 +10,7 @@ import {
   getPreviewQuery,
   getSuggestedConfigQuery,
   getScrapeErrorsQuery,
+  getLogsQuery,
   configApprovedSignal,
   productsApprovedSignal,
   exportApprovedSignal,
@@ -95,6 +96,7 @@ export function App(): React.ReactElement {
     [],
   );
   const [scrapeErrors, setScrapeErrors] = useState<ScrapeError[]>([]);
+  const [logs, setLogs] = useState<string[]>([]);
   const [exportFilePath, setExportFilePath] = useState("");
   const [exportRowCount, setExportRowCount] = useState(0);
 
@@ -175,6 +177,9 @@ export function App(): React.ReactElement {
 
         const errors = await handle.query<ScrapeError[]>(getScrapeErrorsQuery);
         setScrapeErrors(errors);
+
+        const workflowLogs = await handle.query<string[]>(getLogsQuery);
+        setLogs(workflowLogs);
 
         // Phase-based screen transitions
         switch (status.phase) {
@@ -292,6 +297,7 @@ export function App(): React.ReactElement {
         <AnalysisScreen
           url={url}
           status={workflowStatus.message ?? ""}
+          logs={logs}
         />
       );
 
@@ -312,6 +318,7 @@ export function App(): React.ReactElement {
           progress={progress}
           productCount={products.length}
           errors={scrapeErrors}
+          logs={logs}
         />
       );
 
@@ -325,7 +332,7 @@ export function App(): React.ReactElement {
 
     case "enriching":
       return (
-        <EnrichmentScreen progress={progress} phase={enrichmentPhase} />
+        <EnrichmentScreen progress={progress} phase={enrichmentPhase} logs={logs} />
       );
 
     case "preview":

@@ -7,6 +7,7 @@ import type { WorkflowProgress } from "../../temporal/workflows/index.js";
 interface EnrichmentScreenProps {
   progress: WorkflowProgress;
   phase: "descriptions" | "seo";
+  logs?: string[];
 }
 
 const PHASE_LABELS: Record<string, string> = {
@@ -22,9 +23,11 @@ const PHASE_MODELS: Record<string, string> = {
 export function EnrichmentScreen({
   progress,
   phase,
+  logs = [],
 }: EnrichmentScreenProps): React.ReactElement {
   const label = PHASE_LABELS[phase] ?? phase;
   const model = PHASE_MODELS[phase] ?? "Unknown";
+  const recentLogs = logs.slice(-8);
 
   return (
     <Box flexDirection="column" gap={1}>
@@ -45,6 +48,14 @@ export function EnrichmentScreen({
         <Text color={theme.textDim}>Model: </Text>
         <Text color={theme.text}>{model}</Text>
       </Box>
+
+      {recentLogs.length > 0 && (
+        <Box flexDirection="column" marginTop={1}>
+          {recentLogs.map((line, i) => (
+            <Text key={i} color={theme.textDim} dimColor>{line}</Text>
+          ))}
+        </Box>
+      )}
     </Box>
   );
 }

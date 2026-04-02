@@ -9,13 +9,17 @@ interface ScrapeProgressScreenProps {
   progress: WorkflowProgress;
   productCount: number;
   errors: ScrapeError[];
+  logs?: string[];
 }
 
 export function ScrapeProgressScreen({
   progress,
   productCount,
   errors,
+  logs = [],
 }: ScrapeProgressScreenProps): React.ReactElement {
+  const recentLogs = logs.slice(-8);
+
   return (
     <Box flexDirection="column" gap={1}>
       <Text bold color={theme.accent}>
@@ -42,6 +46,14 @@ export function ScrapeProgressScreen({
           <Text color={theme.error}>
             Errors: {errors.length}
           </Text>
+        </Box>
+      )}
+
+      {recentLogs.length > 0 && (
+        <Box flexDirection="column" marginTop={1}>
+          {recentLogs.map((line, i) => (
+            <Text key={i} color={theme.textDim} dimColor>{line}</Text>
+          ))}
         </Box>
       )}
     </Box>
