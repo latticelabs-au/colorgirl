@@ -108,56 +108,56 @@ const ENRICHED_PRODUCTS: EnrichedProduct[] = GROUPED_PRODUCTS.map((p) => ({
 describe("WelcomeScreen", () => {
   it("renders without crashing", () => {
     const { lastFrame } = render(
-      <WelcomeScreen version="0.1.0" isConnected={true} isClaudeConnected={true} onContinue={() => {}} />,
+      <WelcomeScreen version="1.0.0" isConnected={true} isClaudeConnected={true} onContinue={() => {}} />,
     );
     expect(lastFrame()).toBeTruthy();
   });
 
   it("shows version", () => {
     const { lastFrame } = render(
-      <WelcomeScreen version="0.1.0" isConnected={true} isClaudeConnected={true} onContinue={() => {}} />,
+      <WelcomeScreen version="1.0.0" isConnected={true} isClaudeConnected={true} onContinue={() => {}} />,
     );
-    expect(lastFrame()).toContain("0.1.0");
+    expect(lastFrame()).toContain("1.0.0");
   });
 
   it("shows connected status", () => {
     const { lastFrame } = render(
-      <WelcomeScreen version="0.1.0" isConnected={true} isClaudeConnected={true} onContinue={() => {}} />,
+      <WelcomeScreen version="1.0.0" isConnected={true} isClaudeConnected={true} onContinue={() => {}} />,
     );
     expect(lastFrame()).toContain("Connected");
   });
 
   it("shows disconnected status", () => {
     const { lastFrame } = render(
-      <WelcomeScreen version="0.1.0" isConnected={false} isClaudeConnected={false} onContinue={() => {}} />,
+      <WelcomeScreen version="1.0.0" isConnected={false} isClaudeConnected={false} onContinue={() => {}} />,
     );
     expect(lastFrame()).toContain("Disconnected");
   });
 
   it("shows press enter hint", () => {
     const { lastFrame } = render(
-      <WelcomeScreen version="0.1.0" isConnected={true} isClaudeConnected={true} onContinue={() => {}} />,
+      <WelcomeScreen version="1.0.0" isConnected={true} isClaudeConnected={true} onContinue={() => {}} />,
     );
     expect(lastFrame()).toContain("Enter");
   });
 
   it("shows Claude connectivity status", () => {
     const { lastFrame } = render(
-      <WelcomeScreen version="0.1.0" isConnected={true} isClaudeConnected={true} onContinue={() => {}} />,
+      <WelcomeScreen version="1.0.0" isConnected={true} isClaudeConnected={true} onContinue={() => {}} />,
     );
     expect(lastFrame()).toContain("Claude");
   });
 
   it("shows checking state for Claude", () => {
     const { lastFrame } = render(
-      <WelcomeScreen version="0.1.0" isConnected={true} isClaudeConnected={null} onContinue={() => {}} />,
+      <WelcomeScreen version="1.0.0" isConnected={true} isClaudeConnected={null} onContinue={() => {}} />,
     );
     expect(lastFrame()).toContain("Checking");
   });
 
   it("shows warning when Claude disconnected", () => {
     const { lastFrame } = render(
-      <WelcomeScreen version="0.1.0" isConnected={true} isClaudeConnected={false} onContinue={() => {}} />,
+      <WelcomeScreen version="1.0.0" isConnected={true} isClaudeConnected={false} onContinue={() => {}} />,
     );
     expect(lastFrame()).toContain("re-auth");
   });

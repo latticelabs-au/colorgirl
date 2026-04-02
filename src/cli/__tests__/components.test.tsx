@@ -220,10 +220,10 @@ describe("KeyHint", () => {
 
 describe("Header", () => {
   it("renders with version", () => {
-    const { lastFrame } = render(<Header version="0.1.0" />);
+    const { lastFrame } = render(<Header version="1.0.0" />);
     const frame = lastFrame()!;
     expect(frame).toContain("ColorGirl");
-    expect(frame).toContain("v0.1.0");
+    expect(frame).toContain("v1.0.0");
   });
 
   it("renders without version", () => {
