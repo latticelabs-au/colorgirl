@@ -5,9 +5,11 @@
   \___\___/_\___/_|   |___/_|_| |_|
 ```
 
-AI-powered product scraper that converts supplier e-commerce catalogs into WooCommerce-ready CSV imports.
+**ColorGirl** — AI-powered product scraper that converts supplier e-commerce catalogs into WooCommerce-ready CSV imports.
 
-Point it at a supplier site. Claude analyses the structure, scrapes the products (HTTP-first, Playwright as last resort), Claude writes descriptions and SEO, and you get a CSV you can drop straight into WooCommerce.
+Because importing products shouldn't stress you out.
+
+Point it at a supplier site. Claude analyses the structure, scrapes the products, writes descriptions and SEO, and you get a CSV you can drop straight into WooCommerce.
 
 ## Quick start
 
@@ -21,7 +23,13 @@ npm install                    # first time only
 ./colorgirl --rebuild          # force Docker rebuild
 ```
 
-Credentials are auto-detected from your Claude Code login (`~/.claude/.credentials.json`). If not logged in, the script prompts you to paste an API key.
+Credentials are auto-detected from your Claude Code login. If not logged in, the script prompts you to paste an API key.
+
+```bash
+# Example: scrape an entire trophy supplier catalog
+./colorgirl
+> Enter URL: https://trophies.com.au
+```
 
 ## Pipeline
 
@@ -160,3 +168,7 @@ src/
 ## Tech stack
 
 TypeScript (ESM) / Node.js 20 / Ink + React (TUI) / Temporal (orchestration) / axios + cheerio (HTTP scraping) / Playwright (tier 3 only) / Claude Agent SDK (AI agents) / csv-stringify (export) / Vitest (testing) / tsup (build)
+
+---
+
+Built with ❤️ and too much coffee (cold brew only).
