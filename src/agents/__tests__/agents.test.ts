@@ -1,14 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // ---------------------------------------------------------------------------
-// Mock the @anthropic-ai/claude-code SDK
+// Mock the @anthropic-ai/claude-agent-sdk
 // ---------------------------------------------------------------------------
 
 // vi.hoisted() runs before vi.mock() hoisting, so mockQuery is available
 // inside the factory without "before initialization" errors.
 const mockQuery = vi.hoisted(() => vi.fn());
 
-vi.mock("@anthropic-ai/claude-code", () => ({
+vi.mock("@anthropic-ai/claude-agent-sdk", () => ({
   query: mockQuery,
 }));
 

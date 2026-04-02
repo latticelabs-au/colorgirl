@@ -6,7 +6,7 @@
  * agent executor.
  */
 
-declare module "@anthropic-ai/claude-code" {
+declare module "@anthropic-ai/claude-agent-sdk" {
   export interface QueryOptions {
     /** Model identifier (e.g. "claude-opus-4-6", "claude-sonnet-4-6") */
     model: string;

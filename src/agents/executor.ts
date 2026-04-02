@@ -1,10 +1,10 @@
 /**
  * Shared SDK wrapper for all AI agents.
- * Uses the @anthropic-ai/claude-code SDK query() function to execute prompts
+ * Uses the @anthropic-ai/claude-agent-sdk query() function to execute prompts
  * and collect streamed text responses.
  */
 
-import { query } from "@anthropic-ai/claude-code";
+import { query } from "@anthropic-ai/claude-agent-sdk";
 
 // ---------------------------------------------------------------------------
 // Types

@@ -9,10 +9,9 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      // The @anthropic-ai/claude-code package is a CLI tool with no proper
-      // module entry point. Alias it to a stub so Vite can resolve the import
+      // Alias the agent SDK to a stub so Vite can resolve the import
       // before vi.mock() replaces it in tests.
-      "@anthropic-ai/claude-code": resolve(
+      "@anthropic-ai/claude-agent-sdk": resolve(
         __dirname,
         "src/agents/__tests__/_claude-code-stub.ts",
       ),
