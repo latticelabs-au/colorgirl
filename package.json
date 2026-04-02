@@ -1,6 +1,6 @@
 {
   "name": "colorgirl",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "type": "module",
   "bin": {
     "colorgirl": "./dist/cli/app.js"
