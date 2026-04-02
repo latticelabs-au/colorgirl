@@ -349,11 +349,20 @@ if [ -n "${CLAUDE_CODE_OAUTH_TOKEN:-}" ] && command -v claude &>/dev/null; then
 fi
 
 # Build the worker image (needed for credential check and running)
-echo "Building worker image..."
-if $VERBOSE; then
-  docker compose -f "$COMPOSE_FILE" build colorgirl-worker 2>&1
+# If --rebuild, do the no-cache build here so we don't build twice
+if $REBUILD; then
+  echo "Building worker image (no cache)..."
 else
-  BUILD_ERR=$(docker compose -f "$COMPOSE_FILE" build colorgirl-worker 2>&1)
+  echo "Building worker image..."
+fi
+
+BUILD_CMD="docker compose -f $COMPOSE_FILE build colorgirl-worker"
+$REBUILD && BUILD_CMD="$BUILD_CMD --no-cache"
+
+if $VERBOSE; then
+  $BUILD_CMD 2>&1
+else
+  BUILD_ERR=$($BUILD_CMD 2>&1)
   if [ $? -ne 0 ]; then
     echo ""
     echo "ERROR: Docker build failed."
@@ -401,23 +410,6 @@ fi
 docker compose -f "$COMPOSE_FILE" down > /dev/null 2>&1 || true
 
 echo "Starting infrastructure..."
-
-if $REBUILD; then
-  echo "Rebuilding Docker images (no cache)..."
-  if $VERBOSE; then
-    docker compose -f "$COMPOSE_FILE" build --no-cache 2>&1
-  else
-    REBUILD_ERR=$(docker compose -f "$COMPOSE_FILE" build --no-cache 2>&1)
-    if [ $? -ne 0 ]; then
-      echo ""
-      echo "ERROR: Docker rebuild failed."
-      echo "$REBUILD_ERR" | tail -5
-      echo ""
-      echo "Common fix: docker system prune -f (free disk space)"
-      exit 1
-    fi
-  fi
-fi
 
 if $VERBOSE; then
   docker compose -f "$COMPOSE_FILE" up -d --build 2>&1 | grep -v "^$"
