@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Box, Text } from "ink";
 import { Spinner } from "../components/index.js";
 import { theme } from "../theme.js";
@@ -14,8 +14,18 @@ export function AnalysisScreen({
   status,
   logs = [],
 }: AnalysisScreenProps): React.ReactElement {
-  // Show last 10 log lines
   const recentLogs = logs.slice(-10);
+
+  // Elapsed timer
+  const [elapsed, setElapsed] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setElapsed((e) => e + 1), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  const mins = Math.floor(elapsed / 60);
+  const secs = elapsed % 60;
+  const timeStr = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
 
   return (
     <Box flexDirection="column" gap={1}>
@@ -23,6 +33,9 @@ export function AnalysisScreen({
         Site Analysis
       </Text>
       <Spinner label={`Analysing ${url}...`} />
+      <Text color={theme.textDim}>
+        Elapsed: {timeStr} — typically 2-8 min (Opus is browsing the site)
+      </Text>
       {status && <Text color={theme.textDim}>{status}</Text>}
       {recentLogs.length > 0 && (
         <Box flexDirection="column" marginTop={1}>
