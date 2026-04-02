@@ -199,18 +199,7 @@ if [ -z "${CLAUDE_CODE_OAUTH_TOKEN:-}" ] && [ -z "${ANTHROPIC_API_KEY:-}" ]; the
   done
 
   if [ -n "$CRED_FILE" ]; then
-    # Convert MSYS/cygwin path to native for Node.js
-    NODE_CRED_FILE="$CRED_FILE"
-    if command -v cygpath &>/dev/null; then
-      NODE_CRED_FILE="$(cygpath -w "$CRED_FILE")"
-    fi
-    TOKEN=$(node -e "
-const fs = require('fs');
-try {
-  const data = JSON.parse(fs.readFileSync(String.raw\`$NODE_CRED_FILE\`, 'utf8'));
-  console.log(data.claudeAiOauth.accessToken);
-} catch(e) { process.exit(1); }
-" 2>/dev/null || true)
+    TOKEN=$(node -e "var fs=require('fs');try{var d=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));console.log(d.claudeAiOauth.accessToken)}catch(e){process.exit(1)}" "$CRED_FILE" 2>/dev/null || true)
     if [ -n "${TOKEN:-}" ]; then
       export CLAUDE_CODE_OAUTH_TOKEN="$TOKEN"
       echo "Loaded OAuth token from ~/.claude/.credentials.json"
