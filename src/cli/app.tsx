@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { render, useApp, useInput } from "ink";
+import { render, useApp, useInput, Box, Text } from "ink";
+import { execFile } from "node:child_process";
 import { Client } from "@temporalio/client";
 import { createTemporalClient, TASK_QUEUE } from "../temporal/client.js";
 import {
@@ -27,6 +28,10 @@ import type {
   EnrichedProduct,
 } from "../pipeline/models.js";
 import type { ScrapeError } from "../scraper/engine.js";
+import type { AppError } from "./types.js";
+import { toAppError } from "./errors.js";
+import { theme } from "./theme.js";
+import { useGracefulShutdown } from "./hooks/index.js";
 
 import {
   WelcomeScreen,
@@ -38,7 +43,9 @@ import {
   EnrichmentScreen,
   PreviewScreen,
   ExportScreen,
+  ErrorScreen,
 } from "./screens/index.js";
+import { HelpOverlay } from "./components/index.js";
 
 // ── Screen type ─────────────────────────────────────────
 export type Screen =
@@ -50,7 +57,8 @@ export type Screen =
   | "product-review"
   | "enriching"
   | "preview"
-  | "export";
+  | "export"
+  | "error";
 
 // ── Default business config ─────────────────────────────
 const DEFAULT_BUSINESS_CONFIG: BusinessConfig = {
@@ -67,16 +75,25 @@ const DEFAULT_BUSINESS_CONFIG: BusinessConfig = {
 const VERSION = "0.1.0";
 
 // ── App ─────────────────────────────────────────────────
-export function App(): React.ReactElement {
+interface AppProps {
+  initialUrl?: string;
+}
+
+export function App({ initialUrl }: AppProps = {}): React.ReactElement {
   const { exit } = useApp();
 
   // Core state
   const [screen, setScreen] = useState<Screen>("welcome");
   const [client, setClient] = useState<Client | null>(null);
   const [isConnected, setIsConnected] = useState(false);
+  const [isClaudeConnected, setIsClaudeConnected] = useState<boolean | null>(null);
   const [workflowId, setWorkflowId] = useState<string | null>(null);
   const [url, setUrl] = useState("");
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [appError, setAppError] = useState<AppError | null>(null);
+  const [showHelp, setShowHelp] = useState(false);
+
+  // Graceful shutdown (Esc key with double-press confirmation)
+  const { pendingExit } = useGracefulShutdown(client, workflowId, screen);
 
   // Workflow-derived state
   const [workflowStatus, setWorkflowStatus] = useState<WorkflowStatus>({
@@ -115,8 +132,11 @@ export function App(): React.ReactElement {
         setClient(c);
         setIsConnected(true);
       })
-      .catch(() => {
-        if (!cancelled) setIsConnected(false);
+      .catch((err) => {
+        if (!cancelled) {
+          setIsConnected(false);
+          setAppError(toAppError(err, "temporal-connection"));
+        }
       });
     return () => {
       cancelled = true;
@@ -124,10 +144,24 @@ export function App(): React.ReactElement {
     };
   }, []);
 
-  // Global quit handler
+  // Check Claude connectivity on mount
+  useEffect(() => {
+    execFile("claude", ["--print", "ping"], { timeout: 15000 }, (err, stdout) => {
+      if (err) {
+        setIsClaudeConnected(false);
+      } else {
+        setIsClaudeConnected(stdout.trim().length > 0);
+      }
+    });
+  }, []);
+
+  // Global quit + help handler
   useInput((input) => {
-    if (input === "q" && (screen === "export" || screen === "welcome")) {
+    if (input === "q" && (screen === "export" || screen === "welcome" || screen === "error")) {
       exit();
+    }
+    if (input === "?" && !showHelp) {
+      setShowHelp(true);
     }
   });
 
@@ -152,12 +186,19 @@ export function App(): React.ReactElement {
         });
         setWorkflowId(wfId);
       } catch (err) {
-        setErrorMsg(String(err));
-        setScreen("welcome");
+        setAppError(toAppError(err, "workflow-start"));
+        setScreen("error");
       }
     },
     [client],
   );
+
+  // Auto-start with URL if provided as CLI arg
+  useEffect(() => {
+    if (initialUrl && client && !workflowId) {
+      startWorkflow(initialUrl);
+    }
+  }, [initialUrl, client, workflowId, startWorkflow]);
 
   // Poll workflow state
   useEffect(() => {
@@ -165,12 +206,16 @@ export function App(): React.ReactElement {
 
     const handle = client.workflow.getHandle(workflowId);
     let polling = false;
+    let consecutiveFailures = 0;
+    const MAX_CONSECUTIVE_FAILURES = 5;
+
     const interval = setInterval(async () => {
       if (polling) return;
       polling = true;
       try {
         const status = await handle.query<WorkflowStatus>(getStatusQuery);
         setWorkflowStatus(status);
+        consecutiveFailures = 0; // Reset on success
 
         const prog = await handle.query<WorkflowProgress>(getProgressQuery);
         setProgress(prog);
@@ -236,11 +281,16 @@ export function App(): React.ReactElement {
             break;
 
           case "error":
-            setErrorMsg(status.message ?? "Unknown error");
+            setAppError(toAppError(status.message ?? "Unknown error", "workflow-error"));
+            setScreen("error");
             break;
         }
-      } catch {
-        // Query may fail transiently during workflow transitions
+      } catch (err) {
+        consecutiveFailures++;
+        if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
+          setAppError(toAppError(err, "query-failed"));
+          setScreen("error");
+        }
       } finally {
         polling = false;
       }
@@ -274,17 +324,32 @@ export function App(): React.ReactElement {
     await handle.signal(exportApprovedSignal);
   }, [workflowId, client]);
 
-  // Derive enrichment phase from workflow status
-  const enrichmentPhase: "descriptions" | "seo" =
-    workflowStatus.message?.includes("SEO") ? "seo" : "descriptions";
+  // ── Pending exit warning ──────────────────────────────
+  if (pendingExit) {
+    return (
+      <Box flexDirection="column" gap={1}>
+        <Text color={theme.warning}>Press Esc again to quit (workflow will be cancelled)</Text>
+      </Box>
+    );
+  }
+
+  // ── Help overlay ──────────────────────────────────────
+  if (showHelp) {
+    return <HelpOverlay screen={screen} onDismiss={() => setShowHelp(false)} />;
+  }
 
   // ── Screen router ─────────────────────────────────────
   switch (screen) {
     case "welcome":
+      if (initialUrl && client) {
+        // Skip welcome if URL provided via CLI
+        return <AnalysisScreen url={initialUrl} status="Starting..." />;
+      }
       return (
         <WelcomeScreen
           version={VERSION}
           isConnected={isConnected}
+          isClaudeConnected={isClaudeConnected}
           onContinue={() => setScreen("url-input")}
         />
       );
@@ -332,7 +397,7 @@ export function App(): React.ReactElement {
 
     case "enriching":
       return (
-        <EnrichmentScreen progress={progress} phase={enrichmentPhase} logs={logs} />
+        <EnrichmentScreen progress={progress} logs={logs} />
       );
 
     case "preview":
@@ -351,12 +416,46 @@ export function App(): React.ReactElement {
           productCount={enrichedProducts.length}
         />
       );
+
+    case "error":
+      return (
+        <ErrorScreen
+          error={appError ?? { code: "UNKNOWN", message: "Unknown error", suggestion: "Try restarting." }}
+          onRestart={() => {
+            setAppError(null);
+            setWorkflowId(null);
+            setScreen("welcome");
+          }}
+          onQuit={() => exit()}
+        />
+      );
   }
 }
 
 // ── CLI entry point ─────────────────────────────────────
+import { ErrorBoundary } from "./components/index.js";
+import { parseCliArgs, printHelp, printVersion } from "./args.js";
+
 export function main(): void {
-  render(<App />);
+  const args = parseCliArgs();
+
+  if (args.help) {
+    printHelp();
+    process.exit(0);
+  }
+  if (args.version) {
+    printVersion();
+    process.exit(0);
+  }
+  if (args.noColor || process.env.NO_COLOR) {
+    process.env.FORCE_COLOR = "0";
+  }
+
+  render(
+    <ErrorBoundary>
+      <App initialUrl={args.url ?? undefined} />
+    </ErrorBoundary>,
+  );
 }
 
 // Direct execution

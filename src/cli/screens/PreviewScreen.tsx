@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Box, Text, useInput } from "ink";
-import { KeyHint } from "../components/index.js";
+import { KeyHint, StepProgress } from "../components/index.js";
 import { theme } from "../theme.js";
 import type { EnrichedProduct } from "../../pipeline/models.js";
 
@@ -20,11 +20,11 @@ export function PreviewScreen({
   const maxScroll = Math.max(0, preview.length - 1);
 
   useInput((input, key) => {
-    if (key.downArrow) {
+    if (key.downArrow || input === "j") {
       setScrollOffset((i) => Math.min(i + 1, maxScroll));
       return;
     }
-    if (key.upArrow) {
+    if (key.upArrow || input === "k") {
       setScrollOffset((i) => Math.max(i - 1, 0));
       return;
     }
@@ -36,6 +36,7 @@ export function PreviewScreen({
 
   return (
     <Box flexDirection="column" gap={1}>
+      <StepProgress currentPhase="awaiting-export" />
       <Text bold color={theme.accent}>
         Preview Enriched Products
       </Text>

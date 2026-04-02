@@ -2,8 +2,11 @@
 export const theme = {
   accent: "#a56571",
   accentDim: "#7a4a54",
+  accentLight: "#c98a94",
+  accentBright: "#d4707e",
   text: "#e0e0e0",
   textDim: "#808080",
+  info: "#5b9bd5",
   success: "#4caf50",
   warning: "#ff9800",
   error: "#f44336",

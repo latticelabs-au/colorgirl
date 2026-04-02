@@ -10,8 +10,10 @@ import { ProductReviewScreen } from "../screens/ProductReviewScreen.js";
 import { EnrichmentScreen } from "../screens/EnrichmentScreen.js";
 import { PreviewScreen } from "../screens/PreviewScreen.js";
 import { ExportScreen } from "../screens/ExportScreen.js";
+import { ErrorScreen } from "../screens/ErrorScreen.js";
 import type { SiteConfig, BusinessConfig, GroupedProduct, EnrichedProduct } from "../../pipeline/models.js";
 import type { WorkflowProgress } from "../../temporal/workflows/scrape-workflow.js";
+import type { AppError } from "../types.js";
 
 // ── Fixtures ────────────────────────────────────────────
 
@@ -106,37 +108,58 @@ const ENRICHED_PRODUCTS: EnrichedProduct[] = GROUPED_PRODUCTS.map((p) => ({
 describe("WelcomeScreen", () => {
   it("renders without crashing", () => {
     const { lastFrame } = render(
-      <WelcomeScreen version="0.1.0" isConnected={true} onContinue={() => {}} />,
+      <WelcomeScreen version="0.1.0" isConnected={true} isClaudeConnected={true} onContinue={() => {}} />,
     );
     expect(lastFrame()).toBeTruthy();
   });
 
   it("shows version", () => {
     const { lastFrame } = render(
-      <WelcomeScreen version="0.1.0" isConnected={true} onContinue={() => {}} />,
+      <WelcomeScreen version="0.1.0" isConnected={true} isClaudeConnected={true} onContinue={() => {}} />,
     );
     expect(lastFrame()).toContain("0.1.0");
   });
 
   it("shows connected status", () => {
     const { lastFrame } = render(
-      <WelcomeScreen version="0.1.0" isConnected={true} onContinue={() => {}} />,
+      <WelcomeScreen version="0.1.0" isConnected={true} isClaudeConnected={true} onContinue={() => {}} />,
     );
     expect(lastFrame()).toContain("Connected");
   });
 
   it("shows disconnected status", () => {
     const { lastFrame } = render(
-      <WelcomeScreen version="0.1.0" isConnected={false} onContinue={() => {}} />,
+      <WelcomeScreen version="0.1.0" isConnected={false} isClaudeConnected={false} onContinue={() => {}} />,
     );
     expect(lastFrame()).toContain("Disconnected");
   });
 
   it("shows press enter hint", () => {
     const { lastFrame } = render(
-      <WelcomeScreen version="0.1.0" isConnected={true} onContinue={() => {}} />,
+      <WelcomeScreen version="0.1.0" isConnected={true} isClaudeConnected={true} onContinue={() => {}} />,
     );
     expect(lastFrame()).toContain("Enter");
+  });
+
+  it("shows Claude connectivity status", () => {
+    const { lastFrame } = render(
+      <WelcomeScreen version="0.1.0" isConnected={true} isClaudeConnected={true} onContinue={() => {}} />,
+    );
+    expect(lastFrame()).toContain("Claude");
+  });
+
+  it("shows checking state for Claude", () => {
+    const { lastFrame } = render(
+      <WelcomeScreen version="0.1.0" isConnected={true} isClaudeConnected={null} onContinue={() => {}} />,
+    );
+    expect(lastFrame()).toContain("Checking");
+  });
+
+  it("shows warning when Claude disconnected", () => {
+    const { lastFrame } = render(
+      <WelcomeScreen version="0.1.0" isConnected={true} isClaudeConnected={false} onContinue={() => {}} />,
+    );
+    expect(lastFrame()).toContain("re-authenticate");
   });
 });
 
@@ -353,51 +376,31 @@ describe("ProductReviewScreen", () => {
 });
 
 describe("EnrichmentScreen", () => {
-  it("renders without crashing for descriptions phase", () => {
+  it("renders without crashing", () => {
     const { lastFrame } = render(
-      <EnrichmentScreen progress={PROGRESS} phase="descriptions" />,
+      <EnrichmentScreen progress={PROGRESS} />,
     );
     expect(lastFrame()).toBeTruthy();
   });
 
-  it("renders without crashing for seo phase", () => {
+  it("shows combined enrichment label", () => {
     const { lastFrame } = render(
-      <EnrichmentScreen progress={PROGRESS} phase="seo" />,
+      <EnrichmentScreen progress={PROGRESS} />,
     );
-    expect(lastFrame()).toBeTruthy();
+    expect(lastFrame()).toContain("descriptions + SEO");
   });
 
-  it("shows descriptions phase label", () => {
+  it("shows both model names", () => {
     const { lastFrame } = render(
-      <EnrichmentScreen progress={PROGRESS} phase="descriptions" />,
-    );
-    expect(lastFrame()).toContain("Generating descriptions");
-  });
-
-  it("shows seo phase label", () => {
-    const { lastFrame } = render(
-      <EnrichmentScreen progress={PROGRESS} phase="seo" />,
-    );
-    expect(lastFrame()).toContain("Generating SEO");
-  });
-
-  it("shows model name for descriptions", () => {
-    const { lastFrame } = render(
-      <EnrichmentScreen progress={PROGRESS} phase="descriptions" />,
+      <EnrichmentScreen progress={PROGRESS} />,
     );
     expect(lastFrame()).toContain("Haiku");
-  });
-
-  it("shows model name for seo", () => {
-    const { lastFrame } = render(
-      <EnrichmentScreen progress={PROGRESS} phase="seo" />,
-    );
     expect(lastFrame()).toContain("Sonnet");
   });
 
   it("shows batch progress", () => {
     const { lastFrame } = render(
-      <EnrichmentScreen progress={PROGRESS} phase="descriptions" />,
+      <EnrichmentScreen progress={PROGRESS} />,
     );
     expect(lastFrame()).toContain("3 of 10");
   });
@@ -489,5 +492,50 @@ describe("ExportScreen", () => {
       <ExportScreen filePath="/output/test.csv" rowCount={150} productCount={30} />,
     );
     expect(lastFrame()).toContain("Exit");
+  });
+});
+
+describe("ErrorScreen", () => {
+  const ERROR: AppError = {
+    code: "WORKFLOW_FAILED",
+    message: "Activity timed out",
+    detail: "Error: activity timeout after 30m",
+    suggestion: "Check worker logs:\n  docker compose logs colorgirl-worker",
+  };
+
+  it("renders without crashing", () => {
+    const { lastFrame } = render(
+      <ErrorScreen error={ERROR} onRestart={() => {}} onQuit={() => {}} />,
+    );
+    expect(lastFrame()).toBeTruthy();
+  });
+
+  it("shows error code", () => {
+    const { lastFrame } = render(
+      <ErrorScreen error={ERROR} onRestart={() => {}} onQuit={() => {}} />,
+    );
+    expect(lastFrame()).toContain("WORKFLOW_FAILED");
+  });
+
+  it("shows error message", () => {
+    const { lastFrame } = render(
+      <ErrorScreen error={ERROR} onRestart={() => {}} onQuit={() => {}} />,
+    );
+    expect(lastFrame()).toContain("Activity timed out");
+  });
+
+  it("shows suggestion", () => {
+    const { lastFrame } = render(
+      <ErrorScreen error={ERROR} onRestart={() => {}} onQuit={() => {}} />,
+    );
+    expect(lastFrame()).toContain("Check worker logs");
+  });
+
+  it("shows restart and quit hints", () => {
+    const { lastFrame } = render(
+      <ErrorScreen error={ERROR} onRestart={() => {}} onQuit={() => {}} />,
+    );
+    expect(lastFrame()).toContain("Restart");
+    expect(lastFrame()).toContain("Quit");
   });
 });

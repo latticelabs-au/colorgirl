@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useRef } from "react";
+import React from "react";
 import { Box, Text } from "ink";
-import { ProgressBar, StatusBar } from "../components/index.js";
+import { ProgressBar, StatusBar, StepProgress } from "../components/index.js";
 import { theme } from "../theme.js";
+import { useEta } from "../hooks/index.js";
 import type { WorkflowProgress } from "../../temporal/workflows/index.js";
 import type { ScrapeError } from "../../scraper/engine.js";
 
@@ -19,30 +20,11 @@ export function ScrapeProgressScreen({
   logs = [],
 }: ScrapeProgressScreenProps): React.ReactElement {
   const recentLogs = logs.slice(-8);
-
-  // ETA based on progress
-  const [elapsed, setElapsed] = useState(0);
-  const startRef = useRef(Date.now());
-  useEffect(() => {
-    const t = setInterval(() => setElapsed(Math.floor((Date.now() - startRef.current) / 1000)), 1000);
-    return () => clearInterval(t);
-  }, []);
-
-  let etaStr = "";
-  if (progress.percentage > 5 && elapsed > 5) {
-    const totalEstimate = (elapsed / progress.percentage) * 100;
-    const remaining = Math.max(0, Math.round(totalEstimate - elapsed));
-    const remMins = Math.floor(remaining / 60);
-    const remSecs = remaining % 60;
-    etaStr = remMins > 0 ? `~${remMins}m ${remSecs}s remaining` : `~${remSecs}s remaining`;
-  }
-
-  const elapsedMins = Math.floor(elapsed / 60);
-  const elapsedSecs = elapsed % 60;
-  const elapsedStr = elapsedMins > 0 ? `${elapsedMins}m ${elapsedSecs}s` : `${elapsedSecs}s`;
+  const { elapsedStr, etaStr } = useEta(progress.percentage);
 
   return (
     <Box flexDirection="column" gap={1}>
+      <StepProgress currentPhase="scraping" />
       <Text bold color={theme.accent}>
         Scraping Products
       </Text>
@@ -64,15 +46,20 @@ export function ScrapeProgressScreen({
       </Box>
 
       {errors.length > 0 && (
-        <Box>
+        <Box flexDirection="column">
           <Text color={theme.error}>Errors: {errors.length}</Text>
+          {errors.slice(-3).map((err, i) => (
+            <Text key={i} color={theme.textDim}>
+              {"  "}{err.url.slice(0, 60)}{err.url.length > 60 ? "..." : ""} — {err.error}
+            </Text>
+          ))}
         </Box>
       )}
 
       {recentLogs.length > 0 && (
         <Box flexDirection="column" marginTop={1}>
           {recentLogs.map((line, i) => (
-            <Text key={i} color={theme.textDim} dimColor>{line}</Text>
+            <Text key={i} color={theme.textDim}>{line}</Text>
           ))}
         </Box>
       )}

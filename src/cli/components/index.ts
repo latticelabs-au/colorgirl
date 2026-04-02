@@ -5,3 +5,8 @@ export { StatusBar } from "./StatusBar.js";
 export { Header } from "./Header.js";
 export { Checkbox } from "./Checkbox.js";
 export { KeyHint } from "./KeyHint.js";
+export { ErrorBoundary } from "./ErrorBoundary.js";
+export { StepProgress } from "./StepProgress.js";
+export { Divider } from "./Divider.js";
+export { Panel } from "./Panel.js";
+export { HelpOverlay } from "./HelpOverlay.js";

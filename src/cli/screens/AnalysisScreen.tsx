@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { Box, Text } from "ink";
-import { Spinner } from "../components/index.js";
+import { Spinner, StepProgress } from "../components/index.js";
 import { theme } from "../theme.js";
+import { formatElapsed } from "../utils.js";
 
 interface AnalysisScreenProps {
   url: string;
@@ -23,12 +24,11 @@ export function AnalysisScreen({
     return () => clearInterval(t);
   }, []);
 
-  const mins = Math.floor(elapsed / 60);
-  const secs = elapsed % 60;
-  const timeStr = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+  const timeStr = formatElapsed(elapsed);
 
   return (
     <Box flexDirection="column" gap={1}>
+      <StepProgress currentPhase="analyzing" />
       <Text bold color={theme.accent}>
         Site Analysis
       </Text>
@@ -40,7 +40,7 @@ export function AnalysisScreen({
       {recentLogs.length > 0 && (
         <Box flexDirection="column" marginTop={1}>
           {recentLogs.map((line, i) => (
-            <Text key={i} color={theme.textDim} dimColor>
+            <Text key={i} color={theme.textDim}>
               {line}
             </Text>
           ))}

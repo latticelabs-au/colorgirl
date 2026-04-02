@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Box, Text, useInput } from "ink";
-import { Checkbox, KeyHint, StatusBar } from "../components/index.js";
+import { Checkbox, KeyHint, StatusBar, StepProgress, Panel } from "../components/index.js";
 import { theme } from "../theme.js";
 import type { SiteConfig, BusinessConfig } from "../../pipeline/models.js";
 
@@ -134,6 +134,7 @@ export function ConfigScreen({
 
   return (
     <Box flexDirection="column" gap={1}>
+      <StepProgress currentPhase="awaiting-config" />
       <Text bold color={theme.accent}>
         Configuration Review
       </Text>
@@ -141,44 +142,41 @@ export function ConfigScreen({
       <StatusBar phase="Config" message={`Site: ${config.name}`} />
 
       {/* Site config (read-only) */}
-      <Box flexDirection="column">
-        <Text color={theme.textDim}>Site Name: </Text>
-        <Text color={theme.text}>{config.name}</Text>
-      </Box>
-      <Box flexDirection="column">
-        <Text color={theme.textDim}>Base URL: </Text>
-        <Text color={theme.text}>{config.baseUrl}</Text>
-      </Box>
-      <Box>
-        <Text color={theme.textDim}>Discovery: </Text>
-        <Text color={theme.text}>{config.discovery.type}</Text>
-      </Box>
-      <Box>
-        <Text color={theme.textDim}>Variants: </Text>
-        <Text color={theme.text}>{config.variants.type}</Text>
-      </Box>
-      <Box>
-        <Text color={theme.textDim}>Rate limit: </Text>
-        <Text color={theme.text}>{config.rateLimit}ms</Text>
-      </Box>
-
-      {/* Attributes */}
-      {config.attributes.length > 0 && (
-        <Box flexDirection="column">
-          <Text color={theme.textDim}>Attributes:</Text>
-          {config.attributes.map((attr) => (
-            <Text key={attr.slug} color={theme.text}>
-              {"  "}{attr.name} ({attr.slug}){attr.isVariation ? " [variation]" : ""}
-            </Text>
-          ))}
+      <Panel title="Site Config">
+        <Box>
+          <Text color={theme.textDim}>Name: </Text>
+          <Text color={theme.text}>{config.name}</Text>
         </Box>
-      )}
+        <Box>
+          <Text color={theme.textDim}>URL:  </Text>
+          <Text color={theme.text}>{config.baseUrl}</Text>
+        </Box>
+        <Box>
+          <Text color={theme.textDim}>Discovery: </Text>
+          <Text color={theme.text}>{config.discovery.type}</Text>
+        </Box>
+        <Box>
+          <Text color={theme.textDim}>Variants:  </Text>
+          <Text color={theme.text}>{config.variants.type}</Text>
+        </Box>
+        <Box>
+          <Text color={theme.textDim}>Rate limit: </Text>
+          <Text color={theme.text}>{config.rateLimit}ms</Text>
+        </Box>
+        {config.attributes.length > 0 && (
+          <Box flexDirection="column">
+            <Text color={theme.textDim}>Attributes:</Text>
+            {config.attributes.map((attr) => (
+              <Text key={attr.slug} color={theme.text}>
+                {"  "}{attr.name} ({attr.slug}){attr.isVariation ? " [variation]" : ""}
+              </Text>
+            ))}
+          </Box>
+        )}
+      </Panel>
 
       {/* Business config (editable) */}
-      <Box flexDirection="column" marginTop={1}>
-        <Text bold color={theme.accent}>
-          Business Config
-        </Text>
+      <Panel title="Business Config">
         <Box>
           <Text
             color={focusedField === "name" ? theme.accent : theme.textDim}
@@ -215,17 +213,11 @@ export function ConfigScreen({
             {editingField === "region" ? "|" : ""}
           </Text>
         </Box>
-      </Box>
+      </Panel>
 
       {/* Category list */}
       {allCategories.length > 0 && (
-        <Box flexDirection="column" marginTop={1}>
-          <Text
-            bold
-            color={focusedField === "categories" ? theme.accent : theme.textDim}
-          >
-            Categories ({selectedCategories.size}/{allCategories.length})
-          </Text>
+        <Panel title={`Categories (${selectedCategories.size}/${allCategories.length})`}>
           {allCategories.map((cat, idx) => (
             <Checkbox
               key={cat}
@@ -234,7 +226,7 @@ export function ConfigScreen({
               focused={focusedField === "categories" && idx === categoryIndex}
             />
           ))}
-        </Box>
+        </Panel>
       )}
 
       {/* Approve button */}

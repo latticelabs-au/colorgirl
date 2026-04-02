@@ -7,3 +7,4 @@ export { ProductReviewScreen } from "./ProductReviewScreen.js";
 export { EnrichmentScreen } from "./EnrichmentScreen.js";
 export { PreviewScreen } from "./PreviewScreen.js";
 export { ExportScreen } from "./ExportScreen.js";
+export { ErrorScreen } from "./ErrorScreen.js";

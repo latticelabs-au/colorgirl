@@ -9,6 +9,10 @@ import { StatusBar } from "../components/StatusBar.js";
 import { Header } from "../components/Header.js";
 import { Checkbox } from "../components/Checkbox.js";
 import { KeyHint } from "../components/KeyHint.js";
+import { Text } from "ink";
+import { StepProgress } from "../components/StepProgress.js";
+import { Divider } from "../components/Divider.js";
+import { Panel } from "../components/Panel.js";
 
 describe("theme", () => {
   it("has the correct accent colour", () => {
@@ -233,5 +237,70 @@ describe("Header", () => {
     const { lastFrame } = render(<Header version="1.0.0" />);
     // The logo contains "ColorGirl" text in ASCII, just verify the frame has content
     expect(lastFrame()!.length).toBeGreaterThan(0);
+  });
+});
+
+describe("StepProgress", () => {
+  it("shows all step labels", () => {
+    const { lastFrame } = render(<StepProgress currentPhase="analyzing" />);
+    const frame = lastFrame()!;
+    expect(frame).toContain("Analysis");
+    expect(frame).toContain("Config");
+    expect(frame).toContain("Scraping");
+    expect(frame).toContain("Products");
+    expect(frame).toContain("Enrichment");
+    expect(frame).toContain("Preview");
+    expect(frame).toContain("Export");
+  });
+
+  it("marks current phase with filled circle", () => {
+    const { lastFrame } = render(<StepProgress currentPhase="scraping" />);
+    expect(lastFrame()).toContain("●");
+  });
+
+  it("marks completed phases with checkmark", () => {
+    const { lastFrame } = render(<StepProgress currentPhase="scraping" />);
+    expect(lastFrame()).toContain("✓");
+  });
+
+  it("marks pending phases with empty circle", () => {
+    const { lastFrame } = render(<StepProgress currentPhase="analyzing" />);
+    expect(lastFrame()).toContain("○");
+  });
+
+  it("renders gracefully for error phase", () => {
+    const { lastFrame } = render(<StepProgress currentPhase="error" />);
+    // Error without a specific step just shows all as pending
+    expect(lastFrame()).toBeTruthy();
+  });
+});
+
+describe("Divider", () => {
+  it("renders a line without label", () => {
+    const { lastFrame } = render(<Divider />);
+    expect(lastFrame()).toContain("─");
+  });
+
+  it("renders with a label", () => {
+    const { lastFrame } = render(<Divider label="Section" />);
+    expect(lastFrame()).toContain("Section");
+    expect(lastFrame()).toContain("─");
+  });
+});
+
+describe("Panel", () => {
+  it("renders children", () => {
+    const { lastFrame } = render(
+      <Panel><Text>Hello Panel</Text></Panel>,
+    );
+    expect(lastFrame()).toContain("Hello Panel");
+  });
+
+  it("renders with a title", () => {
+    const { lastFrame } = render(
+      <Panel title="My Panel"><Text>Content</Text></Panel>,
+    );
+    expect(lastFrame()).toContain("My Panel");
+    expect(lastFrame()).toContain("Content");
   });
 });

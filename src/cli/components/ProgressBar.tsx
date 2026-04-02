@@ -22,7 +22,8 @@ export function ProgressBar({
       {label && (
         <Text color={theme.text}>{label} </Text>
       )}
-      <Text color={theme.accent}>{"█".repeat(filled)}</Text>
+      <Text color={theme.accent}>{"█".repeat(Math.max(0, filled - 1))}</Text>
+      {filled > 0 && <Text color={theme.accentLight}>{filled < width ? "▓" : "█"}</Text>}
       <Text color={theme.border}>{"░".repeat(empty)}</Text>
       <Text color={progressColor(clamped)}> {Math.round(clamped)}%</Text>
     </Box>

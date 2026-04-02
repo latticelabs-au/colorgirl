@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Box, Text, useInput } from "ink";
-import { Table, Checkbox, KeyHint } from "../components/index.js";
+import { Table, Checkbox, KeyHint, StepProgress } from "../components/index.js";
 import { theme } from "../theme.js";
 import type { GroupedProduct } from "../../pipeline/models.js";
 
@@ -19,11 +19,11 @@ export function ProductReviewScreen({
   const [focusIndex, setFocusIndex] = useState(0);
 
   useInput((input, key) => {
-    if (key.downArrow) {
+    if (key.downArrow || input === "j") {
       setFocusIndex((i) => Math.min(i + 1, products.length - 1));
       return;
     }
-    if (key.upArrow) {
+    if (key.upArrow || input === "k") {
       setFocusIndex((i) => Math.max(i - 1, 0));
       return;
     }
@@ -76,6 +76,7 @@ export function ProductReviewScreen({
 
   return (
     <Box flexDirection="column" gap={1}>
+      <StepProgress currentPhase="awaiting-products" />
       <Text bold color={theme.accent}>
         Product Review
       </Text>
