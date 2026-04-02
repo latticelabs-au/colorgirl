@@ -3,11 +3,7 @@ import { Box, Text } from "ink";
 import { RainbowText } from "./RainbowText.js";
 import { theme } from "../theme.js";
 import type { WorkflowStatus } from "../../temporal/workflows/index.js";
-
-// Read version once at import time
-import { createRequire } from "node:module";
-const require = createRequire(import.meta.url);
-const { version } = require("../../../package.json") as { version: string };
+import { VERSION as version } from "../args.js";
 
 interface StepProgressProps {
   currentPhase: WorkflowStatus["phase"];

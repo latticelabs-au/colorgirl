@@ -72,8 +72,6 @@ const DEFAULT_BUSINESS_CONFIG: BusinessConfig = {
   },
 };
 
-const VERSION = "1.2.3";
-
 // ── App ─────────────────────────────────────────────────
 interface AppProps {
   initialUrl?: string;
@@ -475,7 +473,7 @@ export function App({ initialUrl, resumeWorkflowId }: AppProps = {}): React.Reac
 
 // ── CLI entry point ─────────────────────────────────────
 import { ErrorBoundary } from "./components/index.js";
-import { parseCliArgs, printHelp, printVersion } from "./args.js";
+import { parseCliArgs, printHelp, printVersion, VERSION } from "./args.js";
 
 export function main(): void {
   const args = parseCliArgs();

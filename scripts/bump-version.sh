@@ -49,17 +49,13 @@ echo "Bumping version: $CURRENT_VERSION -> $NEW_VERSION ($BUMP_TYPE)"
 # Update package.json
 sed -i "s/\"version\": \"$CURRENT_VERSION\"/\"version\": \"$NEW_VERSION\"/" "$ROOT_DIR/package.json"
 
-# Update src/cli/app.tsx
-sed -i "s/const VERSION = \"$CURRENT_VERSION\"/const VERSION = \"$NEW_VERSION\"/" "$ROOT_DIR/src/cli/app.tsx"
-
-# Update src/cli/args.ts
+# Update src/cli/args.ts (single source of truth for VERSION constant)
 sed -i "s/const VERSION = \"$CURRENT_VERSION\"/const VERSION = \"$NEW_VERSION\"/" "$ROOT_DIR/src/cli/args.ts"
 
 echo ""
 echo "Version bumped to $NEW_VERSION"
 echo "Files updated:"
 echo "  - package.json"
-echo "  - src/cli/app.tsx"
 echo "  - src/cli/args.ts"
 echo ""
 echo "$NEW_VERSION"
