@@ -8,7 +8,7 @@ import type { DiscoveryResult } from "./sitemap.js";
 
 /**
  * Iterate category-list sections, navigate to each category page,
- * and extract all product links found via <a> tags.
+ * and extract product links using the configured selector/pattern.
  */
 export async function discoverFromCategoryList(
   config: CategoryListDiscovery,
@@ -16,22 +16,25 @@ export async function discoverFromCategoryList(
   browser: BrowserManager,
 ): Promise<DiscoveryResult> {
   const urlSet = new Set<string>();
+  const linkSelector = config.productLinkSelector ?? "a[href]";
+  const urlPattern = config.productUrlPattern
+    ? new RegExp(config.productUrlPattern)
+    : null;
 
   for (const section of config.sections) {
     for (const category of section.categories) {
       const categoryUrl = `${baseUrl}${section.path}/${category}`;
       const page = await browser.goto(categoryUrl);
 
-      // Extract all anchor href values on the category page
-      const links = await page.$$eval("a[href]", (anchors: HTMLAnchorElement[]) =>
+      const links = await page.$$eval(linkSelector, (anchors: HTMLAnchorElement[]) =>
         anchors.map((a) => a.href),
       );
 
-      // Only keep links that are under the same base URL
       for (const link of links) {
-        if (link.startsWith(baseUrl)) {
-          urlSet.add(link);
-        }
+        if (!link.startsWith(baseUrl)) continue;
+        if (link === categoryUrl) continue;
+        if (urlPattern && !urlPattern.test(link)) continue;
+        urlSet.add(link);
       }
     }
   }
