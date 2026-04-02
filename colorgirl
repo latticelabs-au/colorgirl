@@ -219,6 +219,9 @@ fi
 
 export CLAUDE_CODE_OAUTH_TOKEN="${CLAUDE_CODE_OAUTH_TOKEN:-}"
 export ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY:-}"
+if $VERBOSE; then
+  export COLORGIRL_VERBOSE=1
+fi
 
 # ---------------------------------------------------------------------------
 # 2. Build & start Docker containers

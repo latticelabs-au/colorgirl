@@ -54,6 +54,7 @@ services:
       - TEMPORAL_ADDRESS=temporal:7233
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - CLAUDE_CODE_OAUTH_TOKEN=${CLAUDE_CODE_OAUTH_TOKEN:-}
+      - COLORGIRL_VERBOSE=${COLORGIRL_VERBOSE:-0}
     volumes:
       - ../output:/app/output
 

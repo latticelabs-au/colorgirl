@@ -44,11 +44,21 @@ export interface AgentResponse {
  * objects containing a `type` of "result" with content blocks, or objects
  * that carry a `text` field directly.
  */
+const VERBOSE = process.env.COLORGIRL_VERBOSE === "1";
+
+function log(msg: string): void {
+  if (VERBOSE) console.log(`[agent] ${msg}`);
+}
+
 export async function executeAgent(
   prompt: string,
   options: AgentOptions,
 ): Promise<AgentResponse> {
   const { model, systemPrompt, maxTokens = 4096 } = options;
+
+  log(`Starting ${model} agent (maxTokens=${maxTokens})`);
+  log(`Prompt: ${prompt.slice(0, 120)}...`);
+  const startTime = Date.now();
 
   const response = query({
     model,
@@ -60,12 +70,17 @@ export async function executeAgent(
 
   const textParts: string[] = [];
   let usage: AgentResponse["usage"] | undefined;
+  let eventCount = 0;
 
   for await (const event of response) {
-    // The SDK yields message events. Result messages contain content blocks
-    // with the actual text. We also handle direct text fields for robustness.
+    eventCount++;
     if (event && typeof event === "object") {
       const msg = event as Record<string, unknown>;
+
+      // Log event types for debugging
+      if (VERBOSE && msg.type) {
+        log(`Event #${eventCount}: type=${msg.type as string}`);
+      }
 
       // Handle result-type messages with content blocks
       if (Array.isArray(msg.content)) {
@@ -79,6 +94,7 @@ export async function executeAgent(
             typeof block.text === "string"
           ) {
             textParts.push(block.text);
+            log(`Received ${(block.text as string).length} chars of text`);
           }
         }
       }
@@ -94,6 +110,13 @@ export async function executeAgent(
         }
       }
     }
+  }
+
+  const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+  const totalChars = textParts.join("").length;
+  log(`Completed in ${elapsed}s — ${totalChars} chars, ${eventCount} events`);
+  if (usage) {
+    log(`Tokens: ${usage.inputTokens} in / ${usage.outputTokens} out`);
   }
 
   return {
