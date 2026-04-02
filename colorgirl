@@ -369,7 +369,7 @@ PING_RESULT=$(docker run --rm \
   -e CLAUDE_CODE_OAUTH_TOKEN="${CLAUDE_CODE_OAUTH_TOKEN:-}" \
   -e ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY:-}" \
   docker-colorgirl-worker \
-  claude --print "respond with exactly: ok" 2>&1) || true
+  node node_modules/@anthropic-ai/claude-agent-sdk/cli.js --print "respond with exactly: ok" 2>&1) || true
 
 if echo "$PING_RESULT" | grep -qi "ok"; then
   echo " valid."

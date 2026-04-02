@@ -146,7 +146,8 @@ export function App({ initialUrl }: AppProps = {}): React.ReactElement {
 
   // Check Claude connectivity on mount
   useEffect(() => {
-    execFile("claude", ["--print", "ping"], { timeout: 15000 }, (err, stdout) => {
+    // Use SDK's bundled CLI — no global claude binary in container
+    execFile("node", ["node_modules/@anthropic-ai/claude-agent-sdk/cli.js", "--print", "ping"], { timeout: 15000 }, (err, stdout) => {
       if (err) {
         setIsClaudeConnected(false);
       } else {
