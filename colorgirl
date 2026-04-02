@@ -315,8 +315,11 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# 3. Start Docker containers
+# 3. Start Docker containers (fresh, so env vars are up to date)
 # ---------------------------------------------------------------------------
+
+# Always recreate containers to pick up fresh credentials
+docker compose -f "$COMPOSE_FILE" down > /dev/null 2>&1 || true
 
 echo "Starting infrastructure..."
 
