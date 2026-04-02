@@ -274,15 +274,24 @@ fi
 echo ""
 echo "Starting infrastructure..."
 
-BUILD_ARGS=""
 if $REBUILD; then
-  BUILD_ARGS="--no-cache"
+  echo "Rebuilding Docker images (no cache)..."
+  if $VERBOSE; then
+    docker compose -f "$COMPOSE_FILE" build --no-cache 2>&1
+  else
+    docker compose -f "$COMPOSE_FILE" build --no-cache > /dev/null 2>&1
+  fi
 fi
 
 if $VERBOSE; then
-  docker compose -f "$COMPOSE_FILE" up -d --build $BUILD_ARGS 2>&1 | grep -v "^$"
+  docker compose -f "$COMPOSE_FILE" up -d --build 2>&1 | grep -v "^$"
 else
-  docker compose -f "$COMPOSE_FILE" up -d --build $BUILD_ARGS > /dev/null 2>&1
+  # Suppress stdout but show errors
+  docker compose -f "$COMPOSE_FILE" up -d --build > /dev/null 2>&1
+  if [ $? -ne 0 ]; then
+    echo "ERROR: Docker failed to start. Re-run with --verbose for details."
+    exit 1
+  fi
 fi
 
 # ---------------------------------------------------------------------------
