@@ -72,7 +72,7 @@ const DEFAULT_BUSINESS_CONFIG: BusinessConfig = {
   },
 };
 
-const VERSION = "1.2.1";
+const VERSION = "1.2.2";
 
 // ── App ─────────────────────────────────────────────────
 interface AppProps {
