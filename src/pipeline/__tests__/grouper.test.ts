@@ -554,3 +554,150 @@ describe("groupProducts — output ordering and metadata", () => {
     expect(result[0].name).toBe("Gold");
   });
 });
+
+// ---------------------------------------------------------------------------
+// groupProducts — split group detection
+// ---------------------------------------------------------------------------
+
+describe("groupProducts — split group detection", () => {
+  it("splits a group when variation attribute counts are wildly inconsistent (ratio > 3)", () => {
+    // 3 colours with 4 sizes each (12 products) + 1 colour with 1 size (1 product)
+    // ratio = 4/1 = 4 > 3 → split
+    const products: RawProduct[] = [];
+
+    for (const colour of ["Gold", "Silver", "Bronze"]) {
+      for (const size of ["150mm", "200mm", "250mm", "300mm"]) {
+        products.push(
+          makeProduct({
+            sku: `MAIN-${colour[0]}-${size}`,
+            name: `Star Trophy ${colour} ${size}`,
+            attributes: { pa_colour: colour, pa_size: size },
+          })
+        );
+      }
+    }
+
+    products.push(
+      makeProduct({
+        sku: "OUTLIER-R-100mm",
+        name: "Star Trophy Red 100mm",
+        attributes: { pa_colour: "Red", pa_size: "100mm" },
+      })
+    );
+
+    const config: GrouperConfig = {
+      attributes: [
+        { name: "Colour", slug: "pa_colour", isVariation: true, isGlobal: true },
+        { name: "Size", slug: "pa_size", isVariation: true, isGlobal: true },
+      ],
+    };
+
+    const result = groupProducts(products, config);
+    expect(result).toHaveLength(2);
+
+    const main = result.find((g) => g.variations.length > 1);
+    const outlier = result.find((g) => g.variations.length === 1);
+    expect(main).toBeDefined();
+    expect(main!.variations).toHaveLength(12);
+    expect(outlier).toBeDefined();
+    expect(outlier!.variations).toHaveLength(1);
+  });
+
+  it("does not split when ratio is <= 3", () => {
+    const products: RawProduct[] = [];
+
+    for (const colour of ["Gold", "Silver"]) {
+      for (const size of ["S", "M", "L"]) {
+        products.push(
+          makeProduct({
+            sku: `T-${colour[0]}-${size}`,
+            name: `Trophy ${colour}`,
+            attributes: { pa_colour: colour, pa_size: size },
+          })
+        );
+      }
+    }
+    for (const size of ["S", "M"]) {
+      products.push(
+        makeProduct({
+          sku: `T-B-${size}`,
+          name: `Trophy Bronze`,
+          attributes: { pa_colour: "Bronze", pa_size: size },
+        })
+      );
+    }
+
+    const config: GrouperConfig = {
+      attributes: [
+        { name: "Colour", slug: "pa_colour", isVariation: true, isGlobal: true },
+      ],
+    };
+
+    const result = groupProducts(products, config);
+    expect(result).toHaveLength(1);
+    expect(result[0].variations).toHaveLength(8);
+  });
+
+  it("does not split groups with fewer than 4 products", () => {
+    const products = [
+      makeProduct({ sku: "A-1", name: "Trophy Gold", attributes: { pa_colour: "Gold" } }),
+      makeProduct({ sku: "A-2", name: "Trophy Silver", attributes: { pa_colour: "Silver" } }),
+      makeProduct({ sku: "A-3", name: "Trophy Bronze", attributes: { pa_colour: "Bronze" } }),
+    ];
+
+    const config: GrouperConfig = {
+      attributes: [
+        { name: "Colour", slug: "pa_colour", isVariation: true, isGlobal: true },
+      ],
+    };
+
+    const result = groupProducts(products, config);
+    expect(result).toHaveLength(1);
+    expect(result[0].variations).toHaveLength(3);
+  });
+
+  it("does not split when no variation attributes are configured", () => {
+    const products: RawProduct[] = [];
+    for (let i = 0; i < 10; i++) {
+      products.push(makeProduct({ sku: `T-${i}`, name: "Trophy Gold" }));
+    }
+
+    const result = groupProducts(products);
+    expect(result).toHaveLength(1);
+  });
+
+  it("split outlier becomes a simple product", () => {
+    const products: RawProduct[] = [];
+
+    for (const colour of ["Gold", "Silver"]) {
+      for (let s = 1; s <= 5; s++) {
+        products.push(
+          makeProduct({
+            sku: `M-${colour[0]}-${s}`,
+            name: `Medal ${colour}`,
+            attributes: { pa_colour: colour, pa_size: `${s * 50}mm` },
+          })
+        );
+      }
+    }
+
+    products.push(
+      makeProduct({
+        sku: "M-R-1",
+        name: "Medal Red",
+        attributes: { pa_colour: "Red", pa_size: "100mm" },
+      })
+    );
+
+    const config: GrouperConfig = {
+      attributes: [
+        { name: "Colour", slug: "pa_colour", isVariation: true, isGlobal: true },
+      ],
+    };
+
+    const result = groupProducts(products, config);
+    const outlier = result.find((g) => g.variations.length === 1);
+    expect(outlier).toBeDefined();
+    expect(outlier!.type).toBe("simple");
+  });
+});
