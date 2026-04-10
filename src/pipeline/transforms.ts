@@ -58,6 +58,18 @@ export function replaceSlashes(value: string): string {
 }
 
 // ---------------------------------------------------------------------------
+// normalizeSlashes
+// ---------------------------------------------------------------------------
+
+/**
+ * Normalize whitespace around forward slashes.
+ * "Black/Gold" → "Black / Gold", "Black /Gold" → "Black / Gold"
+ */
+export function normalizeSlashes(value: string): string {
+  return value.replace(/\s*\/\s*/g, " / ");
+}
+
+// ---------------------------------------------------------------------------
 // formatNumber
 // ---------------------------------------------------------------------------
 
@@ -210,7 +222,7 @@ export function applyTransform(value: string, transformName: string): string {
     case "format_number":
       return formatNumber(value);
     case "colour_cleanup":
-      return replaceSlashes(reorderColours(value));
+      return replaceSlashes(reorderColours(normalizeSlashes(stripPrefix(value, "Antique"))));
     case "strip_units":
       return stripUnits(value);
     default:

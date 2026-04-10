@@ -8,6 +8,7 @@ import {
   formatDimensions,
   applyTransform,
   stripUnits,
+  normalizeSlashes,
 } from "../transforms.js";
 
 // ---------------------------------------------------------------------------
@@ -372,6 +373,22 @@ describe("applyTransform", () => {
   it("dispatches strip_units", () => {
     expect(applyTransform("150mm", "strip_units")).toBe("150");
   });
+
+  it("colour_cleanup strips Antique prefix, normalizes, reorders, replaces slashes", () => {
+    expect(applyTransform("Antique Silver / Pink", "colour_cleanup")).toBe("Pink & Silver");
+  });
+
+  it("colour_cleanup normalizes bare slashes before reordering", () => {
+    expect(applyTransform("Silver/Pink", "colour_cleanup")).toBe("Pink & Silver");
+  });
+
+  it("colour_cleanup strips Antique with no slash", () => {
+    expect(applyTransform("Antique Gold", "colour_cleanup")).toBe("Gold");
+  });
+
+  it("colour_cleanup leaves normal single colour unchanged", () => {
+    expect(applyTransform("Blue", "colour_cleanup")).toBe("Blue");
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -405,5 +422,35 @@ describe("stripUnits", () => {
 
   it("trims surrounding whitespace", () => {
     expect(stripUnits("  200mm  ")).toBe("200");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// normalizeSlashes
+// ---------------------------------------------------------------------------
+
+describe("normalizeSlashes", () => {
+  it("adds spaces around a bare slash", () => {
+    expect(normalizeSlashes("Black/Gold")).toBe("Black / Gold");
+  });
+
+  it("normalizes inconsistent spacing", () => {
+    expect(normalizeSlashes("Black /Gold")).toBe("Black / Gold");
+  });
+
+  it("leaves already-correct spacing unchanged", () => {
+    expect(normalizeSlashes("Black / Gold")).toBe("Black / Gold");
+  });
+
+  it("handles multiple slashes", () => {
+    expect(normalizeSlashes("A/B/C")).toBe("A / B / C");
+  });
+
+  it("returns value unchanged when no slashes present", () => {
+    expect(normalizeSlashes("Gold")).toBe("Gold");
+  });
+
+  it("handles empty string", () => {
+    expect(normalizeSlashes("")).toBe("");
   });
 });
