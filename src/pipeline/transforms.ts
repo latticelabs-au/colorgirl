@@ -173,6 +173,19 @@ export function formatDimensions(dimensions: DimensionEntry[]): string {
 }
 
 // ---------------------------------------------------------------------------
+// stripUnits
+// ---------------------------------------------------------------------------
+
+/**
+ * Remove trailing unit suffixes (g, mm, cm, etc.) from a value string.
+ * For dimension/weight fields where the unit is in the column header.
+ */
+export function stripUnits(value: string): string {
+  if (!value) return "";
+  return value.trim().replace(/\s*[a-zA-Z]+$/, "");
+}
+
+// ---------------------------------------------------------------------------
 // applyTransform
 // ---------------------------------------------------------------------------
 
@@ -198,6 +211,8 @@ export function applyTransform(value: string, transformName: string): string {
       return formatNumber(value);
     case "colour_cleanup":
       return replaceSlashes(reorderColours(value));
+    case "strip_units":
+      return stripUnits(value);
     default:
       return value;
   }

@@ -7,6 +7,7 @@ import {
   assignSizeLabels,
   formatDimensions,
   applyTransform,
+  stripUnits,
 } from "../transforms.js";
 
 // ---------------------------------------------------------------------------
@@ -366,5 +367,43 @@ describe("applyTransform", () => {
 
   it("strip_prefix does not mutate non-Antique values", () => {
     expect(applyTransform("Silver", "strip_prefix")).toBe("Silver");
+  });
+
+  it("dispatches strip_units", () => {
+    expect(applyTransform("150mm", "strip_units")).toBe("150");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// stripUnits
+// ---------------------------------------------------------------------------
+
+describe("stripUnits", () => {
+  it("strips trailing mm", () => {
+    expect(stripUnits("75mm")).toBe("75");
+  });
+
+  it("strips trailing g", () => {
+    expect(stripUnits("310g")).toBe("310");
+  });
+
+  it("strips trailing unit with space", () => {
+    expect(stripUnits("100 g")).toBe("100");
+  });
+
+  it("strips trailing cm", () => {
+    expect(stripUnits("15cm")).toBe("15");
+  });
+
+  it("returns empty string for empty input", () => {
+    expect(stripUnits("")).toBe("");
+  });
+
+  it("returns value unchanged when no trailing unit", () => {
+    expect(stripUnits("42")).toBe("42");
+  });
+
+  it("trims surrounding whitespace", () => {
+    expect(stripUnits("  200mm  ")).toBe("200");
   });
 });
