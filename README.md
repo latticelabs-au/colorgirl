@@ -5,7 +5,12 @@
   \___\___/_\___/_|   |___/_|_| |_|
 ```
 
-**ColorGirl** — AI-powered product scraper that converts supplier e-commerce catalogs into WooCommerce-ready CSV imports.
+![TypeScript](https://img.shields.io/github/languages/top/latticelabs-au/colorgirl?style=flat-square&labelColor=0C1E3C&color=1E3A5F)
+![Docker](https://img.shields.io/badge/runs%20in-Docker-00B4D8?style=flat-square&labelColor=0C1E3C)
+![WooCommerce](https://img.shields.io/badge/exports-WooCommerce%20CSV-B8860B?style=flat-square&labelColor=0C1E3C)
+![Powered by Claude](https://img.shields.io/badge/powered%20by-Claude-00B4D8?style=flat-square&labelColor=0C1E3C)
+
+**ColorGirl**: AI-powered product scraper that converts supplier e-commerce catalogs into WooCommerce-ready CSV imports.
 
 Because importing products shouldn't stress you out.
 
