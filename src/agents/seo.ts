@@ -14,7 +14,6 @@ import { executeAgent, parseJsonResponse } from "./executor.js";
 // ---------------------------------------------------------------------------
 
 const MODEL = "claude-sonnet-4-6";
-const MAX_TOKENS = 8192;
 const BATCH_SIZE = 100;
 
 // ---------------------------------------------------------------------------
@@ -124,7 +123,6 @@ export async function generateSeo(
     const response = await executeAgent(prompt, {
       model: MODEL,
       systemPrompt,
-      maxTokens: MAX_TOKENS,
     });
 
     let parsed: unknown;

@@ -1,13 +1,14 @@
 /**
- * Stub module for @anthropic-ai/claude-code.
+ * Test stub for @anthropic-ai/claude-agent-sdk.
  *
- * The real package is a CLI tool with no proper ESM/CJS entry point, so Vite
- * cannot resolve it. This stub provides the query() export shape so that
- * vi.mock() can intercept it in tests.
+ * The real package resolves under Vite and Node (its exports map points at
+ * sdk.mjs), so this stub is not a resolution workaround. The Vitest alias in
+ * vitest.config.ts points the import here to keep tests hermetic: a test that
+ * forgets vi.mock() gets this inert query() instead of the real SDK, which
+ * would spawn the Claude Code CLI. Tests replace it with vi.mock().
  *
- * This file is ONLY used during testing via the Vitest alias in vitest.config.ts.
- * Production code imports the real package at runtime (Node.js resolves it fine
- * without Vite's module resolution).
+ * This file is ONLY used during testing. Production code imports the real
+ * package, and tsc type-checks against the types it ships.
  */
 
 export async function* query(

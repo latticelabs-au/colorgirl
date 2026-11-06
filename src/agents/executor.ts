@@ -15,8 +15,6 @@ export interface AgentOptions {
   model: string;
   /** System prompt providing agent context and instructions */
   systemPrompt: string;
-  /** Max tokens for the response (default: 4096) */
-  maxTokens?: number;
   /** Max agentic turns (default: 50) */
   maxTurns?: number;
 }
@@ -56,9 +54,10 @@ export async function executeAgent(
   prompt: string,
   options: AgentOptions,
 ): Promise<AgentResponse> {
-  const { model, systemPrompt, maxTokens = 4096 } = options;
+  const { model, systemPrompt } = options;
+  const maxTurns = options.maxTurns ?? 50;
 
-  log(`Starting ${model} agent (maxTokens=${maxTokens})`);
+  log(`Starting ${model} agent (maxTurns=${maxTurns})`);
   log(`Prompt: ${prompt.slice(0, 120)}...`);
   const startTime = Date.now();
 
@@ -67,9 +66,8 @@ export async function executeAgent(
     options: {
       model,
       systemPrompt,
-      maxTokens,
-      maxTurns: options.maxTurns ?? 50,
-      permissionMode: "bypassPermissions" as any,
+      maxTurns,
+      permissionMode: "bypassPermissions",
       allowDangerouslySkipPermissions: true,
     },
   });

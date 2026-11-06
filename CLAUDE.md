@@ -40,7 +40,7 @@ npm run docker:down    # Tear down Docker stack
 
 ### Key Modules
 
-- **`src/agents/`** — Three Claude SDK agents (site-recon with Opus, descriptions with Haiku, SEO with Sonnet). All use shared `executeAgent()` wrapper around `@anthropic-ai/claude-code` SDK `query()`.
+- **`src/agents/`**: three Claude SDK agents (site-recon with Opus, descriptions with Haiku, SEO with Sonnet). All use the shared `executeAgent()` wrapper around the `@anthropic-ai/claude-agent-sdk` `query()`, typed against the types the package ships (no local shim).
 - **`src/cli/`** — React/Ink terminal UI. `app.tsx` orchestrates screens; `screens/` has one component per workflow step. `theme.ts` defines colors.
 - **`src/temporal/`** — `workflows/scrape-workflow.ts` is the main workflow. `activities/` has 6 activities called by the workflow. `client.ts` handles Temporal connection.
 - **`src/scraper/`** — `engine.ts` drives Playwright. `strategies/` implements discovery (sitemap, category-list, pagination).
@@ -55,7 +55,7 @@ npm run docker:down    # Tear down Docker stack
 
 ## Testing
 
-Vitest with `globals: true` and Node environment. The `@anthropic-ai/claude-code` import is aliased to a stub in `vitest.config.ts` so tests don't require the SDK. Tests mock Playwright browsers via `vi.mock()`.
+Vitest with `globals: true` and Node environment. The `@anthropic-ai/claude-agent-sdk` import is aliased to an inert stub in `vitest.config.ts` so no test can reach the real SDK (which spawns the Claude Code CLI); tests then replace it with `vi.mock()`. Tests mock Playwright browsers via `vi.mock()`.
 
 ## Build
 
