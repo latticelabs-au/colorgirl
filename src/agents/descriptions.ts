@@ -14,7 +14,6 @@ import { executeAgent, parseJsonResponse } from "./executor.js";
 // ---------------------------------------------------------------------------
 
 const MODEL = "claude-haiku-4-5-20251001";
-const MAX_TOKENS = 8192;
 const BATCH_SIZE = 100;
 
 // ---------------------------------------------------------------------------
@@ -107,7 +106,6 @@ export async function generateDescriptions(
     const response = await executeAgent(prompt, {
       model: MODEL,
       systemPrompt: SYSTEM_PROMPT,
-      maxTokens: MAX_TOKENS,
     });
 
     let parsed: unknown;

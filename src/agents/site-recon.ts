@@ -14,7 +14,6 @@ import { executeAgent, parseJsonResponse } from "./executor.js";
 // ---------------------------------------------------------------------------
 
 const MODEL = "claude-opus-4-6";
-const MAX_TOKENS = 8192;
 
 // ---------------------------------------------------------------------------
 // System prompt
@@ -109,7 +108,6 @@ export async function analyzeSite(url: string): Promise<SiteConfig> {
   const response = await executeAgent(prompt, {
     model: MODEL,
     systemPrompt: SYSTEM_PROMPT,
-    maxTokens: MAX_TOKENS,
   });
 
   let config: SiteConfig;

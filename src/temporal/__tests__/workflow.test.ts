@@ -542,7 +542,9 @@ describe("createTemporalClient", () => {
   it("connects with default address when none provided", async () => {
     const mockConnection = { close: vi.fn() };
     mockConnect.mockResolvedValue(mockConnection);
-    mockClient.mockImplementation(() => ({ connection: mockConnection }));
+    mockClient.mockImplementation(function () {
+      return { connection: mockConnection };
+    });
 
     await createTemporalClient();
 
@@ -554,7 +556,9 @@ describe("createTemporalClient", () => {
   it("connects with custom address when provided", async () => {
     const mockConnection = { close: vi.fn() };
     mockConnect.mockResolvedValue(mockConnection);
-    mockClient.mockImplementation(() => ({ connection: mockConnection }));
+    mockClient.mockImplementation(function () {
+      return { connection: mockConnection };
+    });
 
     await createTemporalClient("temporal.example.com:7233");
 

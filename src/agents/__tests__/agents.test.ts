@@ -1,4 +1,10 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, expectTypeOf, vi, beforeEach } from "vitest";
+import type {
+  Options,
+  PermissionMode,
+  Query,
+  query,
+} from "@anthropic-ai/claude-agent-sdk";
 
 // ---------------------------------------------------------------------------
 // Mock the @anthropic-ai/claude-agent-sdk
@@ -169,7 +175,10 @@ describe("executeAgent", () => {
     expect(result.usage).toBeUndefined();
   });
 
-  it("passes options to the SDK query function", async () => {
+  // The options object is matched exactly, so any key the SDK does not take
+  // (such as the old maxTokens, which Options never had and the SDK runtime
+  // never read) fails these tests.
+  it("passes exactly the SDK options to the query function", async () => {
     mockQuery.mockReturnValue(
       makeAsyncIterable([{ content: [{ type: "text", text: "ok" }] }]),
     );
@@ -177,20 +186,22 @@ describe("executeAgent", () => {
     await executeAgent("my prompt", {
       model: "claude-opus-4-6",
       systemPrompt: "my system prompt",
-      maxTokens: 2048,
+      maxTurns: 7,
     });
 
     expect(mockQuery).toHaveBeenCalledWith({
       prompt: "my prompt",
-      options: expect.objectContaining({
+      options: {
         model: "claude-opus-4-6",
         systemPrompt: "my system prompt",
-        maxTokens: 2048,
-      }),
+        maxTurns: 7,
+        permissionMode: "bypassPermissions",
+        allowDangerouslySkipPermissions: true,
+      },
     });
   });
 
-  it("uses default maxTokens of 4096 when not specified", async () => {
+  it("uses default maxTurns of 50 when not specified", async () => {
     mockQuery.mockReturnValue(makeAsyncIterable([]));
 
     await executeAgent("test", {
@@ -200,8 +211,27 @@ describe("executeAgent", () => {
 
     expect(mockQuery).toHaveBeenCalledWith({
       prompt: "test",
-      options: expect.objectContaining({ maxTokens: 4096, maxTurns: 50 }),
+      options: {
+        model: "claude-sonnet-4-6",
+        systemPrompt: "test",
+        maxTurns: 50,
+        permissionMode: "bypassPermissions",
+        allowDangerouslySkipPermissions: true,
+      },
     });
+  });
+
+  // Compile-time guard, enforced by `npm run typecheck` (tsc includes test
+  // files); the runtime body is trivial. It fails if an ambient declaration
+  // ever shadows the types @anthropic-ai/claude-agent-sdk ships: such a shim
+  // either lacks these exports or lets maxTokens through.
+  it("is typed against the real SDK declarations", () => {
+    expectTypeOf<ReturnType<typeof query>>().toEqualTypeOf<Query>();
+    expectTypeOf<NonNullable<Options["permissionMode"]>>().toEqualTypeOf<PermissionMode>();
+
+    // @ts-expect-error maxTokens is not an SDK option
+    const unsupported: Options = { maxTokens: 4096 };
+    expect(unsupported).toEqual({ maxTokens: 4096 });
   });
 });
 
