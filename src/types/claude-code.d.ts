@@ -1,23 +1,33 @@
 /**
- * Type declarations for the @anthropic-ai/claude-code SDK.
+ * Type declarations for the @anthropic-ai/claude-agent-sdk query() call.
  *
- * The package is primarily a CLI tool and does not ship type declarations.
- * This ambient module declaration covers the query() function used by our
- * agent executor.
+ * This ambient module declaration covers only the query() surface used by
+ * our agent executor: query({ prompt, options }).
  */
 
 declare module "@anthropic-ai/claude-agent-sdk" {
-  export interface QueryOptions {
+  export interface QueryRunOptions {
     /** Model identifier (e.g. "claude-opus-4-6", "claude-sonnet-4-6") */
-    model: string;
+    model?: string;
     /** System prompt */
-    systemPrompt: string;
-    /** User prompt */
-    prompt: string;
+    systemPrompt?: string;
     /** Maximum tokens in the response */
     maxTokens?: number;
+    /** Maximum agentic turns */
+    maxTurns?: number;
     /** Tools the agent is allowed to use (empty = text-only) */
     allowedTools?: string[];
+    /** Permission mode for tool use */
+    permissionMode?: string;
+    /** Required alongside permissionMode "bypassPermissions" */
+    allowDangerouslySkipPermissions?: boolean;
+  }
+
+  export interface QueryOptions {
+    /** User prompt */
+    prompt: string;
+    /** Per-query options */
+    options?: QueryRunOptions;
   }
 
   export interface ContentBlock {
